@@ -1036,7 +1036,13 @@
               <url>https://packages.confluent.io/maven/</url>
           </repository>
       </repositories>
-        </profile>
+    </profile>
+    <profile>
+      <id>apple-silicon</id>
+      <properties>
+        <os.detected.classifier>osx-x86_64</os.detected.classifier>
+      </properties>
+    </profile>
   </profiles>
 
 </project>

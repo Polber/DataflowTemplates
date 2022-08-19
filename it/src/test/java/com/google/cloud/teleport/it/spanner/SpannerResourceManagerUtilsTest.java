@@ -16,18 +16,23 @@
 package com.google.cloud.teleport.it.spanner;
 
 import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateDatabaseId;
-import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateInstanceId;
-import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateNewId;
+import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generateInstanceId;
+import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generateNewId;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.teleport.it.common.ResourceManagerUtilsTest;
+import com.google.re2j.Pattern;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils}. */
 @RunWith(JUnit4.class)
-public final class SpannerResourceManagerUtilsTest {
+public final class SpannerResourceManagerUtilsTest extends ResourceManagerUtilsTest {
+
+  private static final int MAX_BASE_ID_LENGTH = 30;
+  private static final Pattern ILLEGAL_INSTANCE_CHARS = Pattern.compile("[\\W_]");
 
   @Test
   public void testGenerateDatabaseIdShouldReplaceDigitLastCharWithLetter() {
@@ -113,82 +118,5 @@ public final class SpannerResourceManagerUtilsTest {
     String testBaseString = "---___$...__";
 
     assertThrows(IllegalArgumentException.class, () -> generateDatabaseId(testBaseString));
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldReplaceDollarSignWithHyphen() {
-    String testBaseString = "test$instance";
-
-    String actual = generateInstanceId(testBaseString);
-
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldReplaceDotWithHyphen() {
-    String testBaseString = "test.instance";
-
-    String actual = generateInstanceId(testBaseString);
-
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldReplaceNonLetterFirstCharWithLetter() {
-    String testBaseString = "0-test-instance";
-
-    String actual = generateInstanceId(testBaseString);
-
-    assertThat(actual).matches("[a-z]-test-instance-\\d{8}-\\d{6}-\\d{6}");
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldReplaceUnderscoreWithHyphen() {
-    String testBaseString = "test_instance";
-
-    String actual = generateInstanceId(testBaseString);
-
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldReplaceUpperCaseLettersWithLowerCase() {
-    String testBaseString = "Test-Instance";
-
-    String actual = generateInstanceId(testBaseString);
-
-    assertThat(actual).matches("test-instance-\\d{8}-\\d{6}-\\d{6}");
-  }
-
-  @Test
-  public void testGenerateInstanceIdShouldThrowErrorWithEmptyInput() {
-    String testBaseString = "";
-
-    assertThrows(IllegalArgumentException.class, () -> generateInstanceId(testBaseString));
-  }
-
-  @Test
-  public void testGenerateNewIdShouldReturnNewIdWhenInputLengthIsLongerThanTargetLength() {
-    String longId = "long-test-id-string";
-
-    String actual = generateNewId(longId, 13);
-
-    assertThat(actual).matches("long-([a-zA-Z0-9]){8}");
-  }
-
-  @Test
-  public void testGenerateNewIdShouldReturnOldIdWhenInputLengthIsNotLongerThanTargetLength() {
-    String shortId = "test-id";
-
-    String actual = generateNewId(shortId, shortId.length());
-
-    assertThat(actual).isEqualTo(shortId);
-  }
-
-  @Test
-  public void testGenerateNewIdShouldThrowExceptionWhenTargetLengthIsNotGreaterThanEight() {
-    String id = "long-test-id";
-
-    assertThrows(IllegalArgumentException.class, () -> generateNewId(id, 8));
   }
 }

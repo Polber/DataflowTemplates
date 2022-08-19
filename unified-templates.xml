@@ -57,4 +57,13 @@
     <module>it</module>
     <module>v2</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <id>apple-silicon</id>
+      <properties>
+        <os.detected.classifier>osx-x86_64</os.detected.classifier>
+      </properties>
+    </profile>
+  </profiles>
 </project>
