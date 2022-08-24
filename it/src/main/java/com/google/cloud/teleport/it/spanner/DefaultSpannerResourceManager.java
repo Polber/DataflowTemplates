@@ -15,9 +15,10 @@
  */
 package com.google.cloud.teleport.it.spanner;
 
+import static com.google.cloud.teleport.it.common.ResourceManagerUtils.checkValidProjectId;
+import static com.google.cloud.teleport.it.common.ResourceManagerUtils.generateNewId;
 import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateDatabaseId;
 import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateInstanceId;
-import static com.google.cloud.teleport.it.spanner.SpannerResourceManagerUtils.generateNewId;
 
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
@@ -90,6 +91,9 @@ public final class DefaultSpannerResourceManager implements SpannerResourceManag
     this.spanner = spanner;
     this.instanceAdminClient = spanner.getInstanceAdminClient();
     this.databaseAdminClient = spanner.getDatabaseAdminClient();
+
+    // Check that the project ID conforms to GCS standards
+    checkValidProjectId(projectId);
   }
 
   public static Builder builder(String testId, String projectId, String region) {
