@@ -25,6 +25,6 @@ public class BigQueryResourceManagerTest {
             System.out.println(r.toString());
             System.out.println(r.get(0).toString());
         }
-        rm.cleanup();
+        rm.cleanupAll();
     }
 }

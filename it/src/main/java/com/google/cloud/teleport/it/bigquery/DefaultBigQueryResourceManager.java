@@ -15,7 +15,9 @@
  */
 package com.google.cloud.teleport.it.bigquery;
 
+import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.paging.Page;
+import com.google.auth.Credentials;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
@@ -33,6 +35,7 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.teleport.it.bigtable.DefaultBigtableResourceManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 
@@ -50,36 +53,38 @@ import org.slf4j.LoggerFactory;
 public final class DefaultBigQueryResourceManager implements BigQueryResourceManager {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultBigQueryResourceManager.class);
 
-    private static final String DEFAULT_CREDENTIAL_ENV_VAR = "DT_IT_ACCESS_TOKEN";
-
+    private final String testId;
     private final String projectId;
     private final String region;
+    private final String datasetId;
 
     private final BigQuery bigQuery;
     private Dataset dataset;
 
     @VisibleForTesting
-    DefaultBigQueryResourceManager(BigQuery bigQuery, String projectId, String region) {
-        this.bigQuery = bigQuery;
-        this.projectId = projectId;
-        this.region = region;
+    DefaultBigQueryResourceManager(String testId, String projectId, String region, Credentials credentials) {
+        this(DefaultBigQueryResourceManager.builder(testId, projectId, region), BigQueryOptions.newBuilder().setProjectId(projectId).setCredentials(credentials).build().getService());
     }
 
     @VisibleForTesting
-    DefaultBigQueryResourceManager(String projectId, String region) {
-        this(DefaultBigQueryResourceManager.builder(projectId, region));
+    DefaultBigQueryResourceManager(String testId, String projectId, String region, BigQuery bigQuery) {
+        this(DefaultBigQueryResourceManager.builder(testId, projectId, region), bigQuery);
     }
 
     private DefaultBigQueryResourceManager(Builder builder) {
-        this(
-                BigQueryOptions.newBuilder().setProjectId(builder.projectId).setCredentials(new GoogleCredentials(new AccessToken(System.getenv(DEFAULT_CREDENTIAL_ENV_VAR), null))).build().getService(),
-                builder.projectId,
-                builder.region
-        );
+        this(builder.testId, builder.projectId, builder.region, builder.credentials);
     }
 
-    public static Builder builder(String projectId, String region) {
-        return new Builder(projectId, region);
+    private DefaultBigQueryResourceManager(Builder builder, BigQuery bigQuery) {
+        this.testId = builder.testId;
+        this.projectId = builder.projectId;
+        this.region = builder.region;
+        this.datasetId = builder.datasetId;
+        this.bigQuery = bigQuery;
+    }
+
+    public static DefaultBigQueryResourceManager.Builder builder(String testId, String projectId, String region) {
+        return new DefaultBigQueryResourceManager.Builder(testId, projectId, region);
     }
 
     /**
@@ -87,9 +92,9 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
      *
      * @throws IllegalStateException if a dataset does not exist.
      */
-    private void checkForDataset() throws IllegalStateException {
+    private void checkForDataset() {
         if (dataset == null) {
-            throw new IllegalStateException("Dataset for integration tests has not been created. Please create a dataset first using the 'createDataset()' function");
+            throw new IllegalStateException("There is no dataset for manager to perform operation on.");
         }
     }
 
@@ -125,16 +130,18 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     }
 
     @Override
-    public synchronized void createDataset(String datasetId) {
+    public synchronized void createDataset() {
+
+        // Check to see if dataset already exists, and throw error if it does
         if (dataset != null) {
-            LOG.info("Already using dataset {}", dataset.getDatasetId().getDataset());
-            return;
+            throw new IllegalStateException("Dataset " + datasetId + " already exists for project " + projectId + ".");
         }
 
+        LOG.info("Creating dataset {} in project {}.", datasetId, projectId);
+
         try {
-            String fullDatasetName = BigQueryResourceManagerUtils.generateDatasetId(datasetId);
-            DatasetInfo datasetInfo = DatasetInfo.newBuilder(fullDatasetName).setLocation(this.region).build();
-            this.dataset = bigQuery.create(datasetInfo);
+            DatasetInfo datasetInfo = DatasetInfo.newBuilder(datasetId).setLocation(region).build();
+            dataset = bigQuery.create(datasetInfo);
 
         } catch (Exception e) {
             throw new BigQueryResourceManagerException("Failed to create dataset.", e);
@@ -219,7 +226,7 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     }
 
     @Override
-    public synchronized void cleanup() {
+    public synchronized void cleanupAll() {
         LOG.info("Attempting to cleanup manager.");
 
         try {
@@ -241,12 +248,21 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
     /** Builder for {@link DefaultBigQueryResourceManager}. */
     public static final class Builder {
 
+        private final String testId;
         private final String projectId;
         private final String region;
+        private String datasetId;
+        private Credentials credentials;
 
-        private Builder(String projectId, String region) {
+        private Builder(String testId, String projectId, String region) {
+            this.testId = testId;
             this.projectId = projectId;
             this.region = region;
+            this.datasetId = BigQueryResourceManagerUtils.generateDatasetId(testId);
+        }
+
+        public String getTestId() {
+            return testId;
         }
 
         public String getProjectId() {
@@ -255,6 +271,24 @@ public final class DefaultBigQueryResourceManager implements BigQueryResourceMan
 
         public String getRegion() {
             return region;
+        }
+
+        public Builder setDatasetId(String datasetId) {
+            this.datasetId = datasetId;
+            return this;
+        }
+
+        public String getDatasetId() {
+            return datasetId;
+        }
+
+        public Builder setCredentials(Credentials credentials) {
+            this.credentials = credentials;
+            return this;
+        }
+
+        public Credentials getCredentials() {
+            return credentials;
         }
 
         public DefaultBigQueryResourceManager build() {

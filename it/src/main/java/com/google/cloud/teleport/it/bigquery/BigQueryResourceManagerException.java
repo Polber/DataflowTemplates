@@ -16,7 +16,7 @@
 package com.google.cloud.teleport.it.bigquery;
 
 /**
- * Custom exception for {@link BigQueryResourceManager} implementations.
+ * Custom exception for {@link com.google.cloud.teleport.it.bigquery.BigQueryResourceManager} implementations.
  */
 public class BigQueryResourceManagerException extends RuntimeException {
 

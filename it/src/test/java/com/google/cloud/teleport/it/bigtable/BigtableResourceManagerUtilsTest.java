@@ -80,4 +80,9 @@ public class BigtableResourceManagerUtilsTest {
   public void testCheckValidTableIdWhenIdContainsIllegalCharacter() {
     assertThrows(IllegalArgumentException.class, () -> checkValidTableId("table-id%"));
   }
+
+  @Test
+  public void testCheckValidTableIdWhenIdIsValid() {
+    checkValidTableId("table-id_valid.Test1");
+  }
 }

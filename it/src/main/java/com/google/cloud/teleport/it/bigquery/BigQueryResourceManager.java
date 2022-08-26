@@ -27,10 +27,9 @@ public interface BigQueryResourceManager {
     /**
      * Create a BigQuery dataset in which all tables will exist.
      *
-     * @param datasetId the ID of the dataset.
      * @throws BigQueryResourceManagerException if there is an error creating the dataset in BigQuery.
      */
-    void createDataset(String datasetId);
+    void createDataset();
 
     /**
      * Creates a table within the current dataset given a table name and schema.
@@ -82,5 +81,5 @@ public interface BigQueryResourceManager {
      *
      * @throws BigQueryResourceManagerException if there is an error deleting the tables or dataset in BigQuery.
      */
-    void cleanup();
+    void cleanupAll();
 }

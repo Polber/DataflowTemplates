@@ -80,13 +80,21 @@ public final class BigtableResourceManagerUtils {
    */
   static void checkValidTableId(String idToCheck) {
     if (idToCheck.length() < MIN_TABLE_ID_LENGTH) {
-      throw new IllegalArgumentException("Table ID " + idToCheck + " is not a valid ID.");
+      throw new IllegalArgumentException("Table ID " + idToCheck + " cannot be empty.");
     }
     if (idToCheck.length() > MAX_TABLE_ID_LENGTH) {
-      throw new IllegalArgumentException("Table ID " + idToCheck + " is not a valid ID.");
+      throw new IllegalArgumentException(
+          "Table ID "
+              + idToCheck
+              + " cannot be longer than "
+              + MAX_TABLE_ID_LENGTH
+              + " characters.");
     }
-    if (!ILLEGAL_TABLE_CHARS.matcher(idToCheck).replaceAll("").equals(idToCheck)) {
-      throw new IllegalArgumentException("Table ID " + idToCheck + " is not a valid ID.");
+    if (ILLEGAL_TABLE_CHARS.matcher(idToCheck).find()) {
+      throw new IllegalArgumentException(
+          "Table ID "
+              + idToCheck
+              + " is not a valid ID. Only letters, numbers, hyphens, underscores and exclamation points are allowed.");
     }
   }
 }

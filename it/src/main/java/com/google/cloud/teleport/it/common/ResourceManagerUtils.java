@@ -100,7 +100,7 @@ public class ResourceManagerUtils {
    */
   public static void checkValidProjectId(String idToCheck) {
     if (idToCheck.length() < MIN_PROJECT_ID_LENGTH) {
-      throw new IllegalArgumentException("Project ID " + idToCheck + " cannot be empty. ");
+      throw new IllegalArgumentException("Project ID " + idToCheck + " cannot be empty.");
     }
     if (idToCheck.length() > MAX_PROJECT_ID_LENGTH) {
       throw new IllegalArgumentException(

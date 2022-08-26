@@ -168,7 +168,7 @@ public class DefaultBigQueryResourceManagerTest {
         when(bigQuery.listTables((DatasetId) any())).thenReturn(tables);
         when(bigQuery.delete((TableId) any())).thenThrow(BigQueryException.class);
 
-        assertThrows(BigQueryResourceManagerException.class, () -> testManager.cleanup());
+        assertThrows(BigQueryResourceManagerException.class, () -> testManager.cleanupAll());
     }
 
     @Test
@@ -181,7 +181,7 @@ public class DefaultBigQueryResourceManagerTest {
         when(bigQuery.listTables((DatasetId) any())).thenReturn(tables);
         when(bigQuery.delete((DatasetId) any())).thenThrow(BigQueryException.class);
 
-        assertThrows(BigQueryResourceManagerException.class, () -> testManager.cleanup());
+        assertThrows(BigQueryResourceManagerException.class, () -> testManager.cleanupAll());
     }
 
     @Test
@@ -193,7 +193,7 @@ public class DefaultBigQueryResourceManagerTest {
         when(tables.iterateAll()).thenReturn(ImmutableList.of(table));
         when(bigQuery.listTables((DatasetId) any())).thenReturn(tables);
 
-        testManager.cleanup();
+        testManager.cleanupAll();
     }
 
 }
