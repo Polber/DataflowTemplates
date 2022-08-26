@@ -71,7 +71,7 @@ public class ResourceManagerUtils {
   public static String generateResourceId(
       String baseString, Pattern illegalChars, String replaceChar, int targetLength) {
     // first, make sure the baseString, typically the test ID, is not empty
-    checkArgument(baseString.length() != 0, "baseString cannot be empty!");
+    checkArgument(baseString.length() != 0, "baseString cannot be empty.");
 
     // next, replace all illegal characters from given string with given replacement character
     String illegalCharsRemoved =

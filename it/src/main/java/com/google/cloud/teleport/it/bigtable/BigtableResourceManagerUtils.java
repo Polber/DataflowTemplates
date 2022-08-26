@@ -85,7 +85,7 @@ public final class BigtableResourceManagerUtils {
     if (idToCheck.length() > MAX_TABLE_ID_LENGTH) {
       throw new IllegalArgumentException("Table ID " + idToCheck + " is not a valid ID.");
     }
-    if (!ILLEGAL_TABLE_CHARS.matcher(idToCheck).replaceAll("_").equals(idToCheck)) {
+    if (!ILLEGAL_TABLE_CHARS.matcher(idToCheck).replaceAll("").equals(idToCheck)) {
       throw new IllegalArgumentException("Table ID " + idToCheck + " is not a valid ID.");
     }
   }
