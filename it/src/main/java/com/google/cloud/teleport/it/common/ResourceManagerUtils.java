@@ -100,13 +100,21 @@ public class ResourceManagerUtils {
    */
   public static void checkValidProjectId(String idToCheck) {
     if (idToCheck.length() < MIN_PROJECT_ID_LENGTH) {
-      throw new IllegalArgumentException("Project ID " + idToCheck + " is not a valid ID.");
+      throw new IllegalArgumentException("Project ID " + idToCheck + " cannot be empty. ");
     }
     if (idToCheck.length() > MAX_PROJECT_ID_LENGTH) {
-      throw new IllegalArgumentException("Project ID " + idToCheck + " is not a valid ID.");
+      throw new IllegalArgumentException(
+          "Project ID "
+              + idToCheck
+              + " cannot be longer than "
+              + MAX_PROJECT_ID_LENGTH
+              + " characters.");
     }
-    if (!ILLEGAL_PROJECT_CHARS.matcher(idToCheck).replaceAll("_").equals(idToCheck)) {
-      throw new IllegalArgumentException("Project ID " + idToCheck + " is not a valid ID.");
+    if (ILLEGAL_PROJECT_CHARS.matcher(idToCheck).find()) {
+      throw new IllegalArgumentException(
+          "Project ID "
+              + idToCheck
+              + " is not a valid ID. Only letters, numbers, hyphens, single quotes and exclamation points are allowed.");
     }
   }
 }
