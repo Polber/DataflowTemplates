@@ -27,12 +27,15 @@ public interface BigQueryResourceManager {
     /**
      * Create a BigQuery dataset in which all tables will exist.
      *
+     * @param region the region to store the dataset in.
      * @throws BigQueryResourceManagerException if there is an error creating the dataset in BigQuery.
      */
-    void createDataset();
+    void createDataset(String region);
 
     /**
      * Creates a table within the current dataset given a table name and schema.
+     *
+     * <p>Note: Implementations may do dataset creation here, if one does not already exist.
      *
      * @param tableName The name of the table.
      * @param schema A schema object that defines the table.

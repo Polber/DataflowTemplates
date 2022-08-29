@@ -81,13 +81,11 @@ public class DefaultBigtableResourceManager implements BigtableResourceManager {
   DefaultBigtableResourceManager(
       String testId,
       String projectId,
-      BigtableResourceManagerClientHandler bigtableResourceManagerClientHandler,
-      CredentialsProvider credentialsProvider)
+      BigtableResourceManagerClientHandler bigtableResourceManagerClientHandler)
       throws IOException {
     this(
         bigtableResourceManagerClientHandler,
-        DefaultBigtableResourceManager.builder(testId, projectId)
-            .setCredentialsProvider(credentialsProvider));
+        DefaultBigtableResourceManager.builder(testId, projectId));
   }
 
   private DefaultBigtableResourceManager(DefaultBigtableResourceManager.Builder builder)
@@ -191,7 +189,11 @@ public class DefaultBigtableResourceManager implements BigtableResourceManager {
     }
 
     // Send the instance request to Google Cloud
-    bigtableResourceManagerClientHandler.getBigtableInstanceAdminClient().createInstance(request);
+    try {
+      bigtableResourceManagerClientHandler.getBigtableInstanceAdminClient().createInstance(request);
+    } catch (Exception e) {
+      throw new BigtableResourceManagerException("Failed to create instance.", e);
+    }
     hasInstance = true;
 
     LOG.info("Successfully created instance {}.", instanceId);

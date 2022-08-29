@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
-import com.google.api.gax.core.CredentialsProvider;
+
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
@@ -61,8 +61,6 @@ public class DefaultBigtableResourceManagerTest {
   @Mock private BigtableTableAdminClient bigtableTableAdminClient;
   @Mock private BigtableDataClient bigtableDataClient;
 
-  @Mock private CredentialsProvider credentialsProvider;
-
   private static final String TEST_ID = "test-id";
   private static final String TABLE_ID = "table-id";
   private static final String PROJECT_ID = "test-project";
@@ -79,7 +77,7 @@ public class DefaultBigtableResourceManagerTest {
   public void setUp() throws IOException {
     testManager =
         new DefaultBigtableResourceManager(
-            TEST_ID, PROJECT_ID, bigtableResourceManagerClientHandler, credentialsProvider);
+            TEST_ID, PROJECT_ID, bigtableResourceManagerClientHandler);
     cluster =
         ImmutableList.of(
             new BigtableResourceManagerCluster(
@@ -118,12 +116,19 @@ public class DefaultBigtableResourceManagerTest {
   }
 
   @Test
-  public void testCreateInstanceShouldWorkWhenBigtableDoesNotThrowAnyError() {
+  public void testCreateInstanceShouldThrowExceptionWhenClientFailsToCreateInstance() {
     prepareCreateInstanceAdminClientMock();
 
     when(bigtableInstanceAdminClient.createInstance(any())).thenThrow(IllegalStateException.class);
 
-    assertThrows(IllegalStateException.class, () -> testManager.createInstance(cluster));
+    assertThrows(BigtableResourceManagerException.class, () -> testManager.createInstance(cluster));
+  }
+
+  @Test
+  public void testCreateInstanceShouldWorkWhenBigtableDoesNotThrowAnyError() {
+    prepareCreateInstanceAdminClientMock();
+
+    testManager.createInstance(cluster);
   }
 
   @Test
@@ -148,7 +153,7 @@ public class DefaultBigtableResourceManagerTest {
     when(bigtableInstanceAdminClient.createInstance(any())).thenThrow(IllegalStateException.class);
 
     assertThrows(
-        IllegalStateException.class,
+        BigtableResourceManagerException.class,
         () -> testManager.createTable(TABLE_ID, ImmutableList.of("cf1")));
   }
 
