@@ -83,6 +83,9 @@ public class BigQueryDynamicConverters {
                 public KV<TableId, TableRow> apply(TableRow row) {
                   TableId tableId = getTableId(row);
                   TableRow resultTableRow = cleanTableRow(row.clone());
+                  try {
+                    LOG.info("TableID, TableRow: " + tableId + ", " + row.toPrettyString());
+                  } catch (Exception ignored) {}
 
                   return KV.of(tableId, resultTableRow);
                 }
@@ -114,7 +117,7 @@ public class BigQueryDynamicConverters {
 
   /**
    * Class {@link BigQueryDynamicDestination} Class BigQueryDynamicDestination loads into BigQuery
-   * tables in a dynamic fashion. The desitination table is based on the TableId supplied by
+   * tables in a dynamic fashion. The destination table is based on the TableId supplied by
    * previous steps.
    */
   public static class BigQueryDynamicDestination

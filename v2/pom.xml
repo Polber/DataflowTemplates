@@ -705,6 +705,7 @@
         <module>streaming-data-generator</module>
         <module>kafka-to-pubsub</module>
         <module>kafka-common</module>
+        <module>pubsub-cdc-to-bigtable</module>
     </modules>
 
 </project>

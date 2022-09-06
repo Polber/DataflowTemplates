@@ -19,6 +19,8 @@ import com.google.cloud.teleport.v2.values.FailsafeElement;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@link PubsubToFailsafeElement} wraps an incoming {@link PubsubMessage} with the {@link
@@ -26,13 +28,15 @@ import org.apache.beam.sdk.transforms.DoFn;
  * a error records table.
  */
 public class PubSubToFailSafeElement extends DoFn<PubsubMessage, FailsafeElement<String, String>> {
+  private static final Logger LOG = LoggerFactory.getLogger(PubSubToFailSafeElement.class);
   @ProcessElement
   public void processElement(ProcessContext context) {
     PubsubMessage message = context.element();
-    context.output(
-        FailsafeElement.of(
+    FailsafeElement<String, String> fsElement = FailsafeElement.of(
             new String(message.getPayload(), StandardCharsets.UTF_8),
-            new String(message.getPayload(), StandardCharsets.UTF_8)));
+            new String(message.getPayload(), StandardCharsets.UTF_8));
+    LOG.info("PubSub to Failsafe: " + fsElement);
+    context.output(fsElement);
   }
 
   public static PubSubToFailSafeElement create() {

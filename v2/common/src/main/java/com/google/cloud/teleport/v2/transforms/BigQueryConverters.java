@@ -138,6 +138,10 @@ public class BigQueryConverters {
         // TODO(billyjacobson): handle other types and column families
         put.addColumn(Bytes.toBytes(columnFamily()), Bytes.toBytes(columnName), columnValue);
       }
+      try {
+        LOG.info("Mutation: " + put.toJSON());
+      } catch (Exception ignore) {}
+
       return put;
     }
   }
@@ -266,6 +270,7 @@ public class BigQueryConverters {
 
                       try {
                         TableRow row = convertJsonToTableRow(json);
+                        LOG.info("JSON to TableRow: " + row.toPrettyString());
                         context.output(row);
                       } catch (Exception e) {
                         context.output(
