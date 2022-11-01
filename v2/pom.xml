@@ -542,6 +542,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.version}</version>
                 <configuration>
+                    <forkCount>0</forkCount>
                   <!-- Exclude Cloud Spanner integration tests that require a GCP project to run.
                   They can be run run manually using
                   TODO: Add support for emulator to run integration tests.

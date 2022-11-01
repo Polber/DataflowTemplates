@@ -42,6 +42,7 @@ public final class TestProperties {
   public static final String REGION_KEY = "region";
   public static final String STAGE_BUCKET = "stageBucket";
   public static final String SPEC_PATH_KEY = "specPath";
+  public static final String HOST_IP_KEY = "hostIp";
 
   // From environment variables
   public static final String ACCESS_TOKEN_KEY = "DT_IT_ACCESS_TOKEN";
@@ -83,6 +84,10 @@ public final class TestProperties {
 
   public static String stageBucket() {
     return getProperty(STAGE_BUCKET, Type.PROPERTY, false);
+  }
+
+  public static String hostIp() {
+    return getProperty(HOST_IP_KEY, "localhost", Type.PROPERTY);
   }
 
   /** Gets a property or throws an exception if it is not found. */

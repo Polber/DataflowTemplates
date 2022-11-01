@@ -74,3 +74,17 @@ jobs:
         run: ./cicd/run-unit-tests --changed-files="${{ steps.setup-env.outputs.changed-files }}"
       - name: Cleanup Java Environment
         uses: ./.github/actions/cleanup-java-env
+  it_tests:
+    name: Integration Tests
+    timeout-minutes: 60
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@230611dbd0eb52da1e1f4f7bc8bb0c3a339fc8b7
+      - name: Setup Environment
+        id: setup-env
+        uses: ./.github/actions/setup-env
+      - name: Run Integration Tests
+        run: ./cicd/run-unit-tests --changed-files="${{ steps.setup-env.outputs.changed-files }}"
+      - name: Cleanup Java Environment
+        uses: ./.github/actions/cleanup-java-env

@@ -28,7 +28,7 @@ func RunMavenOnPom(pom string, cmd string, args ...string) error {
 	fullArgs = append(fullArgs, "-f", pom)
 	fullArgs = append(fullArgs, args...)
 
-	return RunCmdAndStreamOutput("mvn", fullArgs)
+	return RunCmdAndStreamOutput("DT_IT_ACCESS_TOKEN=$(gcloud auth application-default print-access-token) mvn", fullArgs)
 }
 
 // Runs the given Maven command on a specified module. Considering the input, this is equivalent to:

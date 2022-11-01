@@ -32,6 +32,7 @@ const (
 	// mvn commands
 	cleanInstallCmd  = "clean install"
 	spotlessCheckCmd = "spotless:check"
+	verifyCmd        = "verify"
 
 	// regexes
 	javaFileRegex     = "\\.java$"
@@ -82,6 +83,10 @@ func (*mvnFlags) SkipTests() string {
 
 func (*mvnFlags) FailAtTheEnd() string {
 	return "-fae"
+}
+
+func (*mvnFlags) SetFlag(string flag, string value) string {
+	return flag + "=" + value
 }
 
 func NewMavenFlags() MavenFlags {
@@ -168,6 +173,59 @@ func (*spotlessCheckWorkflow) Run(args ...string) error {
 	}
 
 	return op.RunMavenOnModule(unifiedPom, spotlessCheckCmd, strings.Join(modules, ","), args...)
+}
+
+type mvnVerifyWorkflow struct{}
+
+func MvnVerify() Workflow {
+	return &mvnVerifyWorkflow{}
+}
+
+func (*mvnVerifyWorkflow) Run(args ...string) error {
+	flags.RegisterCommonFlags()
+	flag.Parse()
+
+	changed := flags.ChangedFiles(javaFileRegex, pomFileRegex)
+	if len(changed) == 0 {
+		return nil
+	}
+
+	// Collect the modules together for a single call. Maven can work out the install order.
+	modules := make([]string, 0)
+	for root, children := range repo.GetModulesForPaths(changed) {
+		if len(children) == 0 {
+			modules = append(modules, root)
+			continue
+		}
+
+		// A change to the root POM could impact all children, so build them all.
+		buildAll := false
+		for _, c := range changed {
+			if c == filepath.Join(root, "pom.xml") {
+				buildAll = true
+				break
+			}
+		}
+		if buildAll {
+			modules = append(modules, root)
+			continue
+		}
+
+		withoutRoot := removeRoot(children)
+		if len(withoutRoot) == 0 {
+			log.Printf("All files under %s were irrelevant root-level files", root)
+		}
+		for _, m := range withoutRoot {
+			modules = append(modules, fmt.Sprintf("%s/%s", root, m))
+		}
+	}
+
+	if len(modules) == 0 {
+		log.Println("All modules were filtered out.")
+		return nil
+	}
+
+	return op.RunMavenOnModule(unifiedPom, verifyCmd, strings.Join(modules, ","), args...)
 }
 
 // Removes root and returns results. This may reorder the input.
