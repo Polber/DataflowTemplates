@@ -54,6 +54,7 @@ type MavenFlags interface {
 	SkipJib() string
 	SkipTests() string
 	FailAtTheEnd() string
+	RunIntegrationTests() string
 }
 
 type mvnFlags struct{}
@@ -84,6 +85,10 @@ func (*mvnFlags) SkipTests() string {
 
 func (*mvnFlags) FailAtTheEnd() string {
 	return "-fae"
+}
+
+func (*mvnFlags) RunIntegrationTests() string {
+	return "-PtemplatesIntegrationTests,oss-build"
 }
 
 func NewMavenFlags() MavenFlags {

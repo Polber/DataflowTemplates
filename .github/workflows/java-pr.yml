@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@230611dbd0eb52da1e1f4f7bc8bb0c3a339fc8b7
+        uses: actions/checkout@v2
       - name: Setup Environment
         id: setup-env
         uses: ./.github/actions/setup-env
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@230611dbd0eb52da1e1f4f7bc8bb0c3a339fc8b7
+        uses: actions/checkout@v2
       - name: Setup Environment
         id: setup-env
         uses: ./.github/actions/setup-env
@@ -60,7 +60,7 @@ jobs:
         run: ./cicd/run-build --changed-files="${{ steps.setup-env.outputs.changed-files }}"
       - name: Cleanup Java Environment
         uses: ./.github/actions/cleanup-java-env
-  java_tests:
+  java_unit_tests:
     name: Unit Tests
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -72,5 +72,26 @@ jobs:
         uses: ./.github/actions/setup-env
       - name: Run Unit Tests
         run: ./cicd/run-unit-tests --changed-files="${{ steps.setup-env.outputs.changed-files }}"
+      - name: Cleanup Java Environment
+        uses: ./.github/actions/cleanup-java-env
+  java_it_tests:
+    name: Integration Tests
+    # if: ${{ github.event.label.name == 'run-it-tests' }}
+    timeout-minutes: 120
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Setup Environment
+        id: setup-env
+        uses: ./.github/actions/setup-env
+      - name: Run Integration Tests
+        run: | 
+          ./cicd/run-it-tests \
+          --changed-files="${{ steps.setup-env.outputs.changed-files }}" \
+          --it-region="${{ secrets.IT_REGION }}" \
+          --it-project="${{ secrets.IT_PROJECT }}" \
+          --it-artifact-bucket="${{ secrets.IT_ARTIFACT_BUCKET }}" \
+          --it-host-ip="${{ secrets.IT_HOST_IP }}" 
       - name: Cleanup Java Environment
         uses: ./.github/actions/cleanup-java-env

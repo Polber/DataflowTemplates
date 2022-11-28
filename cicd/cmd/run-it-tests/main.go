@@ -30,10 +30,12 @@ func main() {
 		mvnFlags.IncludeDependencies(),
 		mvnFlags.IncludeDependents(),
 		mvnFlags.SkipCheckstyle(),
+		mvnFlags.SkipDependencyAnalysis(),
 		mvnFlags.SkipJib(),
-		mvnFlags.FailAtTheEnd())
+		mvnFlags.FailAtTheEnd(),
+		mvnFlags.RunIntegrationTests())
 	if err != nil {
 		log.Fatalf("%v\n", err)
 	}
-	log.Println("Verification Successful!")
+	log.Println("Build Successful!")
 }
