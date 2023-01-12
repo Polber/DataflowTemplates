@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2021 Google LLC
+ * Copyright (C) 2022 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -14,17 +14,5 @@
  * the License.
  */
 
-package main
-
-import (
-	"log"
-
-	"github.com/GoogleCloudPlatform/DataflowTemplates/cicd/internal/workflows"
-)
-
-func main() {
-	if err := workflows.SpotlessCheck().Run(); err != nil {
-		log.Fatalf("Error running spotless check: %v", err)
-	}
-	log.Println("Spotless check completed successfully!")
-}
+/** Package info for mongodb to bigquery integration tests. */
+package com.google.cloud.teleport.v2.mongodb.templates;

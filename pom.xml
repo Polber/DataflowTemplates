@@ -276,7 +276,6 @@
         <directory>${project.basedir}/target/plugin</directory>
       </build>
     </profile>
-
     <profile>
       <id>oss-build</id>
       <activation>
