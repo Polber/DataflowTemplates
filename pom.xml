@@ -268,7 +268,8 @@
               </includes>
               <excludedGroups></excludedGroups>
               <groups>
-                com.google.cloud.teleport.metadata.TemplateIntegrationTest
+                ${integration.tests}
+                com.google.cloud.teleport.it.testcontainers.TestContainersIntegrationTest
               </groups>
               <reuseForks>true</reuseForks>
               <parallel>${itParallelismType}</parallel>
@@ -305,7 +306,7 @@
                 com.google.cloud.teleport.metadata.SkipDirectRunnerTest
               </excludedGroups>
               <groups>
-                com.google.cloud.teleport.metadata.TemplateIntegrationTest
+                ${integration.tests}
               </groups>
               <systemProperties>
                 <!-- Pass on the flag directRunnerTest to the templates test base -->

@@ -37,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** Unit tests for {@link com.google.cloud.teleport.it.jdbc.AbstractJDBCResourceManager}. */
@@ -187,7 +188,10 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
     doThrow(SQLException.class).when(driver).getConnection(any(), any(), any());
 
     assertThrows(
-        JDBCResourceManagerException.class, () -> testManager.write(TABLE_NAME, 0, "test"));
+        JDBCResourceManagerException.class,
+        () ->
+            testManager.write(
+                TABLE_NAME, ImmutableMap.of(0, ImmutableList.of("test")), ImmutableList.of()));
   }
 
   @Test
@@ -199,7 +203,10 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
     doThrow(SQLException.class).when(statement).executeUpdate(anyString());
 
     assertThrows(
-        JDBCResourceManagerException.class, () -> testManager.write(TABLE_NAME, 0, "test"));
+        JDBCResourceManagerException.class,
+        () ->
+            testManager.write(
+                TABLE_NAME, ImmutableMap.of(0, ImmutableList.of("test")), ImmutableList.of()));
   }
 
   @Test
@@ -209,7 +216,9 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
 
-    assertTrue(testManager.write(TABLE_NAME, 0, "test"));
+    assertTrue(
+        testManager.write(
+            TABLE_NAME, ImmutableMap.of(0, ImmutableList.of("test")), ImmutableList.of()));
 
     verify(statement).executeUpdate(anyString());
   }

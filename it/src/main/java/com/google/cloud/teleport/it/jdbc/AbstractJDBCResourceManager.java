@@ -21,8 +21,6 @@ import static com.google.cloud.teleport.it.jdbc.JDBCResourceManagerUtils.generat
 
 import com.google.cloud.teleport.it.testcontainers.TestContainerResourceManager;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -154,43 +152,7 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
     return true;
   }
 
-  /**
-   * Inserts the given row into a table. This method requires {@link
-   * JDBCResourceManager#createTable(String, JDBCSchema)} to be called for the target table
-   * beforehand.
-   *
-   * <p>The values in the given Object array must correspond in type with the given table's schema.
-   *
-   * @param tableName The name of the table to insert the given row into.
-   * @param row An Object array containing the row values.
-   * @return true, if the rows were successfully written
-   * @throws JDBCResourceManagerException if method is called after resources have been cleaned up,
-   *     if the table does not exist or if there is an Exception when attempting to insert the rows.
-   */
-  public boolean write(String tableName, Integer id, Object... row) {
-    return write(tableName, ImmutableMap.of(id, ImmutableList.of(row)), ImmutableList.of());
-  }
-
   @Override
-  public boolean write(String tableName, Map<Integer, List<Object>> rows) {
-    return write(tableName, rows, ImmutableList.of());
-  }
-
-  /**
-   * Writes the given mapped rows into the specified columns. This method requires {@link
-   * JDBCResourceManager#createTable(String, JDBCSchema)} to be called for the target table
-   * beforehand.
-   *
-   * <p>The rows map must use the row id as the key, and the values will be inserted into the
-   * columns at the row with that id. i.e. {0: [val1, val2, ...], 1: [val1, val2, ...], ...}
-   *
-   * @param tableName The name of the table to insert the given rows into.
-   * @param rows A map representing the rows to be inserted into the table.
-   * @param columns A list of columns to write the mapped values to.
-   * @throws JDBCResourceManagerException if method is called after resources have been cleaned up,
-   *     if the manager object has no dataset, if the table does not exist or if there is an
-   *     Exception when attempting to insert the rows.
-   */
   public boolean write(String tableName, Map<Integer, List<Object>> rows, List<String> columns) {
     LOG.info("Attempting to write {} rows to {}.{}.", rows.size(), databaseName, tableName);
 
@@ -198,37 +160,41 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
       return false;
     }
 
+    // TODO - fix this for custom id's
     StringBuilder sql = new StringBuilder();
+    String insertStatement = "";
     try (Connection con = driver.getConnection(getUri(), username, password)) {
       Statement stmt = con.createStatement();
-      sql.append("INSERT INTO ").append(tableName);
-      if (columns.size() > 0) {
-        sql.append("(").append(String.join(",", columns)).append(")");
-      }
-      sql.append(" VALUES ");
+      sql.append("INSERT INTO ")
+          .append(tableName)
+          .append("(")
+          .append(String.join(",", columns))
+          .append(") VALUES ");
 
       for (Integer rowId : rows.keySet()) {
+        insertStatement = "";
         StringBuilder valueList = new StringBuilder("(");
 
         List<String> rowToInsert = new ArrayList<>();
-        rowToInsert.add(String.valueOf(rowId));
         for (Object value : rows.get(rowId)) {
-          if (!NumberUtils.isCreatable(value.toString())) {
-            rowToInsert.add("'" + value + "'");
-          } else {
+          if (NumberUtils.isCreatable(value.toString())
+              || "true".equalsIgnoreCase(value.toString())
+              || "false".equalsIgnoreCase(value.toString())) {
             rowToInsert.add(String.valueOf(value));
+          } else {
+            rowToInsert.add("'" + value + "'");
           }
         }
 
         valueList.append(String.join(",", rowToInsert)).append(")");
-        String insertStatement = sql.toString() + valueList;
+        insertStatement = sql.toString() + valueList;
         LOG.info("Running SQL statement: " + insertStatement);
         stmt.executeUpdate(insertStatement);
       }
 
     } catch (Exception e) {
       throw new JDBCResourceManagerException(
-          "Failed to insert values into table with SQL statement: " + sql, e);
+          "Failed to insert values into table with SQL statement: " + insertStatement, e);
     }
 
     LOG.info("Successfully wrote {} rows to {}.{}.", rows.size(), databaseName, tableName);

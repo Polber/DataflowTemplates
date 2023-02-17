@@ -58,36 +58,21 @@ public interface JDBCResourceManager extends ResourceManager {
   boolean createTable(String tableName, JDBCSchema schema);
 
   /**
-   * Writes a given row into a table at the given id. This method requires {@link
+   * Writes the given mapped rows into the specified columns. This method requires {@link
    * JDBCResourceManager#createTable(String, JDBCSchema)} to be called for the target table
    * beforehand.
    *
-   * <p>The values given in the row must match the schema by which the table is defined by.
-   *
-   * @param tableName The name of the table to insert the given row into.
-   * @param id The row id to add or edit
-   * @param row The values to write to the row.
-   * @throws JDBCResourceManagerException if method is called after resources have been cleaned up,
-   *     if the manager object has no dataset, if the table does not exist or if there is an
-   *     Exception when attempting to insert the rows.
-   */
-  boolean write(String tableName, Integer id, Object... row);
-
-  /**
-   * Writes the given mapped rows into a table. This method requires {@link
-   * JDBCResourceManager#createTable(String, JDBCSchema)} to be called for the target table
-   * beforehand.
-   *
-   * <p>The rows map must use the row id as the key, and the values will be inserted into the row at
-   * that id. i.e. {0: [val1, val2, ...], 1: [val1, val2, ...], ...}
+   * <p>The rows map must use the row id as the key, and the values will be inserted into the
+   * columns at the row with that id. i.e. {0: [val1, val2, ...], 1: [val1, val2, ...], ...}
    *
    * @param tableName The name of the table to insert the given rows into.
    * @param rows A map representing the rows to be inserted into the table.
+   * @param columns A list of columns to write the mapped values to.
    * @throws JDBCResourceManagerException if method is called after resources have been cleaned up,
    *     if the manager object has no dataset, if the table does not exist or if there is an
    *     Exception when attempting to insert the rows.
    */
-  boolean write(String tableName, Map<Integer, List<Object>> rows);
+  boolean write(String tableName, Map<Integer, List<Object>> rows, List<String> columns);
 
   /**
    * Reads all the rows in a table and returns in the format of a list of Maps, which contain all
@@ -168,15 +153,19 @@ public interface JDBCResourceManager extends ResourceManager {
      * @return this schema object as a SQL statement.
      */
     public String toSqlStatement() {
-      StringBuilder sql = new StringBuilder(idColumn + " INTEGER not NULL");
+      StringBuilder sql = new StringBuilder();
+      boolean hasIdColumn = false;
       for (String colKey : columns.keySet()) {
         if (colKey.equals(idColumn)) {
-          continue;
+          hasIdColumn = true;
         }
-        sql.append(", ");
         sql.append(colKey).append(" ").append(columns.get(colKey).toUpperCase());
+        sql.append(", ");
       }
-      sql.append(", PRIMARY KEY ( ").append(idColumn).append(" )");
+      if (!hasIdColumn) {
+        sql = new StringBuilder(idColumn + " INTEGER not NULL, ").append(sql);
+      }
+      sql.append("PRIMARY KEY ( ").append(idColumn).append(" )");
       return sql.toString();
     }
   }
