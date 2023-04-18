@@ -130,6 +130,11 @@
       <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-splunk</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -179,5 +184,6 @@
     <module>jdbc</module>
     <module>kafka</module>
     <module>mongodb</module>
+    <module>splunk</module>
   </modules>
 </project>
