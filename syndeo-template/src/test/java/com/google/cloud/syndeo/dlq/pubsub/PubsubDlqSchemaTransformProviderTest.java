@@ -90,9 +90,9 @@ public class PubsubDlqSchemaTransformProviderTest {
                     .build(),
                 -9223372036854775L,
                 null,
-                null));
+                TOPIC));
     PubsubTestClientFactory pubsubFactory =
-        PubsubTestClient.createFactoryForPublish(topicPath, outgoing, ImmutableList.of());
+        PubsubTestClient.createFactoryForPublish(null, outgoing, ImmutableList.of());
 
     PCollectionRowTuple.of(
             "errors",
