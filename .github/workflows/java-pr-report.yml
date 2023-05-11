@@ -16,9 +16,7 @@
 
 name: Java PR Report
 on:
-  workflow_run:
-    workflows: [ Java PR ]
-    types: [ completed ]
+  workflow_call:
 
 permissions:
   checks: write # Need to write reports
@@ -48,3 +46,4 @@ jobs:
         name: Maven Tests
         path: '**/surefire-reports/TEST-*.xml'
         reporter: java-junit
+        fail-on-error: 'false'
