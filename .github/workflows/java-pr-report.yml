@@ -44,7 +44,7 @@ jobs:
     steps:
     - uses: dorny/test-reporter@v1
       with:
-        artifact: test-results
+        artifact: surefire-test-results
         name: Maven Tests
-        path: '**/surefire-reports/TEST-*.xml'
-        reporter: jest-junit
+        path: '*.xml'
+        reporter: java-junit
