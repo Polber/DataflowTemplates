@@ -26,23 +26,8 @@ on:
         type: string
 
 permissions:
-  checks: write # Need to write reports
+  checks: write
 
-# jobs:
-#   checks:
-#     runs-on: ubuntu-latest
-#     steps:
-#     - name: Download Test Report
-#       uses: dawidd6/action-download-artifact@v2
-#       with:
-#         name: surefire-test-results
-#         workflow: ${{ github.event.workflow.id }}
-#         run_id: ${{ github.event.workflow_run.id }}
-#     - name: Publish Test Report
-#       uses: mikepenz/action-junit-report@v3
-#       with:
-#         commit: ${{github.event.workflow_run.head_sha}}
-#         report_paths: '**/surefire-reports/TEST-*.xml'
 jobs:
   report:
     runs-on: ubuntu-latest
