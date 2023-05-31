@@ -127,7 +127,8 @@ public class PubSubToSplunkIT extends TemplateTestBase {
     String sourceType = RandomStringUtils.randomAlphabetic(1, 20);
     long currentTime = System.currentTimeMillis();
     for (int i = 1; i <= MESSAGES_COUNT; i++) {
-      String event = RandomStringUtils.randomAlphabetic(1, 20);
+//      String event = RandomStringUtils.randomAlphabetic(1, 20);
+      String event = RandomStringUtils.randomAlphabetic(9000000);
       long usingEpochTime = currentTime + i;
       SplunkEvent.Builder splunkEventBuilder =
           SplunkEvent.newBuilder()
