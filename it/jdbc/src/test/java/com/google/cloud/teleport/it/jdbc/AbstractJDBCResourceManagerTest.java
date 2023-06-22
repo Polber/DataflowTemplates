@@ -53,7 +53,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
   @Mock private ResultSet result;
 
   private static final String TEST_ID = "test_id";
-  private static final String DATABASE_NAME = "database";
   private static final String TABLE_NAME = "test-table";
   private static final String HOST = "localhost";
   private static final int JDBC_PORT = 1234;
@@ -67,7 +66,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
     when(container.withUsername(anyString())).thenReturn(container);
     when(container.withPassword(anyString())).thenReturn(container);
     when(container.withDatabaseName(anyString())).thenReturn(container);
-    when(container.getDatabaseName()).thenReturn(DATABASE_NAME);
 
     testManager =
         new AbstractJDBCResourceManager<T>(
@@ -103,15 +101,14 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testGetUriShouldReturnCorrectValue() {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     assertThat(testManager.getUri())
-        .matches("jdbc:" + JDBC_PREFIX + "://" + HOST + ":" + MAPPED_PORT + "/" + DATABASE_NAME);
+        .matches("jdbc:" + JDBC_PREFIX + "://" + HOST + ":" + MAPPED_PORT + "/" + TEST_ID + "_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
   public void testGetDatabaseNameShouldReturnCorrectValue() {
-    assertThat(testManager.getDatabaseName()).matches(DATABASE_NAME);
+    assertThat(testManager.getDatabaseName()).matches(TEST_ID + "_\\d{8}_\\d{6}_\\d{6}");
   }
 
   @Test
@@ -126,7 +123,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testCreateTableShouldThrowErrorWhenTableAlreadyExists() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -145,7 +141,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
   @Test
   public void testCreateTableShouldThrowErrorWhenDriverFailsToEstablishConnection()
       throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     doThrow(SQLException.class).when(driver).getConnection(any(), any(), any());
 
@@ -159,7 +154,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testCreateTableShouldThrowErrorWhenJDBCFailsToExecuteSQL() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -175,7 +169,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testCreateTableShouldReturnTrueIfJDBCDoesNotThrowAnyError() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -190,7 +183,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testWriteShouldThrowErrorWhenDriverFailsToEstablishConnection() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     doThrow(SQLException.class).when(driver).getConnection(any(), any(), any());
 
@@ -201,7 +193,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testWriteShouldThrowErrorWhenJDBCFailsToExecuteSQL() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -214,7 +205,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testWriteShouldReturnTrueIfJDBCDoesNotThrowAnyError() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -227,7 +217,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
   @Test
   public void testReadTableShouldThrowErrorWhenDriverFailsToEstablishConnection()
       throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     doThrow(SQLException.class).when(driver).getConnection(any(), any(), any());
 
@@ -236,7 +225,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testReadTableShouldThrowErrorWhenJDBCFailsToExecuteSQL() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -247,7 +235,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testReadTableShouldNotThrowErrorIfJDBCDoesNotThrowAnyError() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -261,7 +248,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
   @Test
   public void testRunSQLStatementShouldThrowErrorWhenDriverFailsToEstablishConnection()
       throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     doThrow(SQLException.class).when(driver).getConnection(any(), any(), any());
 
@@ -271,7 +257,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
 
   @Test
   public void testRunSQLStatementShouldThrowErrorWhenJDBCFailsToExecuteSQL() throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);
@@ -284,7 +269,6 @@ public class AbstractJDBCResourceManagerTest<T extends JdbcDatabaseContainer<T>>
   @Test
   public void testRunSQLStatementShouldNotThrowErrorIfJDBCDoesNotThrowAnyError()
       throws SQLException {
-    when(container.getHost()).thenReturn(HOST);
     when(container.getMappedPort(JDBC_PORT)).thenReturn(MAPPED_PORT);
     when(driver.getConnection(any(), any(), any())).thenReturn(connection);
     when(connection.createStatement()).thenReturn(statement);

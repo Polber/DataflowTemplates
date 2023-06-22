@@ -72,7 +72,7 @@ public class MSSQLResourceManager
     LOG.info("Creating database using databaseName '{}'.", databaseName);
 
     StringBuilder sql = new StringBuilder();
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), password)) {
       Statement stmt = con.createStatement();
       sql.append("CREATE DATABASE ").append(databaseName);
       stmt.executeUpdate(sql.toString());
@@ -84,6 +84,11 @@ public class MSSQLResourceManager
 
     initialized = true;
     LOG.info("Successfully created database {}.{}", databaseName, databaseName);
+  }
+
+  @Override
+  public String getUsername() {
+    return "SA";
   }
 
   @Override

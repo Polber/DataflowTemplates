@@ -20,8 +20,6 @@ import com.google.cloud.datastream.v1.OracleSchema;
 import com.google.cloud.datastream.v1.OracleSourceConfig;
 import com.google.cloud.datastream.v1.OracleTable;
 import com.google.protobuf.MessageOrBuilder;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Client for Oracle resource used by Datastream.
@@ -30,17 +28,17 @@ import java.util.Map;
  */
 public class OracleSource extends JDBCSource {
 
+  private static final String DEFAULT_ORACLE_DATABASE_SERVICE = "XE";
+
+  private final String databaseService;
+
   OracleSource(Builder builder) {
     super(builder);
+    this.databaseService = builder.databaseService;
   }
 
-  public static Builder builder(
-      String hostname,
-      String username,
-      String password,
-      int port,
-      Map<String, List<String>> allowedTables) {
-    return new Builder(hostname, username, password, port, allowedTables);
+  public static Builder builder(String hostname, String username, String password, int port) {
+    return new Builder(hostname, username, password, port);
   }
 
   @Override
@@ -50,25 +48,38 @@ public class OracleSource extends JDBCSource {
 
   @Override
   public MessageOrBuilder config() {
-    OracleRdbms.Builder oracleRdmsBuilder = OracleRdbms.newBuilder();
-    for (String schema : this.allowedTables().keySet()) {
-      OracleSchema.Builder oracleSchemaBuilder = OracleSchema.newBuilder().setSchema(schema);
-      for (String table : this.allowedTables().get(schema)) {
-        oracleSchemaBuilder.addOracleTables(OracleTable.newBuilder().setTable(table));
+    OracleSourceConfig.Builder configBuilder = OracleSourceConfig.newBuilder();
+    if (this.allowedTables().size() > 0) {
+      OracleRdbms.Builder oracleRdmsBuilder = OracleRdbms.newBuilder();
+      for (String schema : this.allowedTables().keySet()) {
+        OracleSchema.Builder oracleSchemaBuilder = OracleSchema.newBuilder().setSchema(schema);
+        for (String table : this.allowedTables().get(schema)) {
+          oracleSchemaBuilder.addOracleTables(OracleTable.newBuilder().setTable(table));
+        }
+        oracleRdmsBuilder.addOracleSchemas(oracleSchemaBuilder);
       }
-      oracleRdmsBuilder.addOracleSchemas(oracleSchemaBuilder);
+      configBuilder.setIncludeObjects(oracleRdmsBuilder);
     }
-    return OracleSourceConfig.newBuilder().setIncludeObjects(oracleRdmsBuilder);
+    return configBuilder.build();
   }
 
+  public String databaseService() {
+    return databaseService;
+  }
+
+  /** Builder for {@link OracleSource}. */
   public static class Builder extends JDBCSource.Builder<OracleSource> {
-    public Builder(
-        String hostname,
-        String username,
-        String password,
-        int port,
-        Map<String, List<String>> allowedTables) {
-      super(hostname, username, password, port, allowedTables);
+
+    private String databaseService;
+
+    private Builder(String hostname, String username, String password, int port) {
+      super(hostname, username, password, port);
+      this.databaseService = DEFAULT_ORACLE_DATABASE_SERVICE;
+    }
+
+    public Builder setDatabaseService(String databaseService) {
+      this.databaseService = databaseService;
+      return this;
     }
 
     @Override

@@ -27,8 +27,11 @@ import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +60,7 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
   protected final String username;
   protected final String password;
 
-  private final Map<String, String> tableIds;
+  private final Set<String> tableIds;
 
   @VisibleForTesting
   AbstractJDBCResourceManager(
@@ -69,10 +72,10 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
             .withDatabaseName(builder.databaseName),
         builder);
 
-    this.databaseName = container.getDatabaseName();
-    this.username = container.getUsername();
-    this.password = container.getPassword();
-    this.tableIds = new HashMap<>();
+    this.databaseName = builder.databaseName;
+    this.username = builder.username;
+    this.password = builder.password;
+    this.tableIds = new HashSet<>();
     this.driver = driver;
   }
 
@@ -98,11 +101,15 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
     return password;
   }
 
+  public int getPort() {
+    return this.getPort(getJDBCPort());
+  }
+
   @Override
   public synchronized String getUri() {
     return String.format(
         "jdbc:%s://%s:%d/%s",
-        getJDBCPrefix(), this.getHost(), this.getPort(getJDBCPort()), this.getDatabaseName());
+        getJDBCPrefix(), this.getHost(), this.getPort(), this.getDatabaseName());
   }
 
   public abstract String getJDBCPrefix();
@@ -118,15 +125,15 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
     checkValidTableName(tableName);
 
     // Check if table already exists
-    if (tableIds.containsKey(tableName)) {
+    if (tableIds.contains(tableName)) {
       throw new IllegalStateException(
-          "Table " + tableName + " already exists for database " + databaseName + ".");
+          "Table " + tableName + " already exists for database " + getDatabaseName() + ".");
     }
 
     LOG.info("Creating table using tableName '{}'.", tableName);
 
     StringBuilder sql = new StringBuilder();
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
       sql.append("CREATE TABLE ")
           .append(tableName)
@@ -146,8 +153,8 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
           e);
     }
 
-    tableIds.put(tableName, schema.getIdColumn());
-    LOG.info("Successfully created table {}.{}", databaseName, tableName);
+    tableIds.add(tableName);
+    LOG.info("Successfully created table {}.{}", getDatabaseName(), tableName);
 
     return true;
   }
@@ -172,10 +179,10 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
       return false;
     }
 
-    LOG.info("Attempting to write {} rows to {}.{}.", rows.size(), databaseName, tableName);
+    LOG.info("Attempting to write {} rows to {}.{}.", rows.size(), getDatabaseName(), tableName);
 
     String insertStatement = "";
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
 
       for (Map<String, Object> row : rows) {
@@ -206,19 +213,19 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
           "Failed to insert values into table with SQL statement: " + insertStatement, e);
     }
 
-    LOG.info("Successfully wrote {} rows to {}.{}.", rows.size(), databaseName, tableName);
+    LOG.info("Successfully wrote {} rows to {}.{}.", rows.size(), getDatabaseName(), tableName);
 
     return true;
   }
 
   @Override
   public List<Map<String, Object>> readTable(String tableName) {
-    LOG.info("Reading all rows from {}.{}", databaseName, tableName);
+    LOG.info("Reading all rows from {}.{}", getDatabaseName(), tableName);
 
     List<Map<String, Object>> resultSet = new ArrayList<>();
 
     StringBuilder sql = new StringBuilder();
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
 
       sql.append("SELECT * FROM ").append(tableName);
@@ -239,14 +246,14 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
           "Failed to fetch rows from table. SQL statement: " + sql, e);
     }
 
-    LOG.info("Successfully loaded rows from {}.{}", databaseName, tableName);
+    LOG.info("Successfully loaded rows from {}.{}", getDatabaseName(), tableName);
     return resultSet;
   }
 
   @Override
   public synchronized List<String> getTableSchema(String tableName) {
     String sql = "";
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
       sql = getFirstRow(tableName);
       ResultSet result = stmt.executeQuery(sql);
@@ -277,7 +284,7 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
 
   @Override
   public synchronized ResultSet runSQLQuery(String sql) {
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
       return stmt.executeQuery(sql);
     } catch (Exception e) {
@@ -287,11 +294,22 @@ public abstract class AbstractJDBCResourceManager<T extends JdbcDatabaseContaine
 
   @Override
   public synchronized void runSQLUpdate(String sql) {
-    try (Connection con = driver.getConnection(getUri(), username, password)) {
+    try (Connection con = driver.getConnection(getUri(), getUsername(), getPassword())) {
       Statement stmt = con.createStatement();
       stmt.executeUpdate(sql);
     } catch (Exception e) {
       throw new JDBCResourceManagerException("Failed to execute SQL statement: " + sql, e);
+    }
+  }
+
+  @Override
+  public void cleanupAll() {
+    if (usingStaticContainer) {
+      for (String tableId : tableIds) {
+        runSQLUpdate(String.format("DROP TABLE %s", tableId));
+      }
+    } else {
+      super.cleanupAll();
     }
   }
 

@@ -16,7 +16,11 @@
 package com.google.cloud.teleport.it.jdbc;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import java.util.Locale;
+import java.util.function.Supplier;
 import org.testcontainers.containers.OracleContainer;
+import org.testcontainers.shaded.org.apache.commons.lang3.StringUtils;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -28,7 +32,7 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>The class is thread-safe.
  */
-public class OracleResourceManager extends AbstractJDBCResourceManager<OracleContainer> {
+public class OracleResourceManager extends AbstractJDBCResourceManager<OracleResourceManager.DefaultOracleContainer> {
 
   private static final String DEFAULT_ORACLE_CONTAINER_NAME = "gvenzl/oracle-xe";
 
@@ -42,21 +46,29 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
   //  restrictions may be required.
   private static final String DEFAULT_ORACLE_USERNAME = "testUser";
   private static final String DEFAULT_ORACLE_PASSWORD = "testPassword";
+  private final boolean isUsingXE;
 
   private OracleResourceManager(OracleResourceManager.Builder builder) {
-    this(
-        new OracleContainer(
-            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag)),
+    this(new DefaultOracleContainer(
+            DockerImageName.parse(builder.containerImageName)
+                .withTag(builder.containerImageTag)),
         builder);
   }
 
   @VisibleForTesting
-  OracleResourceManager(OracleContainer container, OracleResourceManager.Builder builder) {
+  public OracleResourceManager(DefaultOracleContainer container, OracleResourceManager.Builder builder) {
     super(container, builder);
+
+    this.isUsingXE = builder.isUsingXE;
   }
 
   public static OracleResourceManager.Builder builder(String testId) {
     return new OracleResourceManager.Builder(testId);
+  }
+
+  @Override
+  public synchronized String getDatabaseName() {
+    return isUsingXE ? getUsername() : databaseName;
   }
 
   @Override
@@ -72,8 +84,11 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
   @Override
   public synchronized String getUri() {
     return String.format(
-        "jdbc:%s:thin:@%s:%d/%s",
-        getJDBCPrefix(), this.getHost(), this.getPort(getJDBCPort()), this.getDatabaseName());
+        "jdbc:%s:thin:@%s:%d%s",
+        getJDBCPrefix(),
+        this.getHost(),
+        this.getPort(getJDBCPort()),
+        isUsingXE ? ":xe" : "/" + getDatabaseName());
   }
 
   @Override
@@ -82,7 +97,9 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
   }
 
   /** Builder for {@link OracleResourceManager}. */
-  public static final class Builder extends AbstractJDBCResourceManager.Builder<OracleContainer> {
+  public static final class Builder extends AbstractJDBCResourceManager.Builder<DefaultOracleContainer> {
+
+    private boolean isUsingXE;
 
     public Builder(String testId) {
       super(testId);
@@ -90,11 +107,36 @@ public class OracleResourceManager extends AbstractJDBCResourceManager<OracleCon
       this.containerImageTag = DEFAULT_ORACLE_CONTAINER_TAG;
       this.username = DEFAULT_ORACLE_USERNAME;
       this.password = DEFAULT_ORACLE_PASSWORD;
+      this.isUsingXE = false;
+    }
+
+    public Builder usingXE() {
+      this.isUsingXE = true;
+      return this;
     }
 
     @Override
     public OracleResourceManager build() {
       return new OracleResourceManager(this);
+    }
+  }
+
+  static final class DefaultOracleContainer extends OracleContainer {
+
+    public DefaultOracleContainer(DockerImageName dockerImageName) {
+      super(dockerImageName);
+    }
+
+    @Override
+    public DefaultOracleContainer withUsername(String username) {
+      try {
+        super.withUsername(username);
+      } catch (IllegalArgumentException e) {
+        if (!username.equalsIgnoreCase("system") && !username.equalsIgnoreCase("sys")) {
+          throw e;
+        }
+      }
+      return (DefaultOracleContainer) this.self();
     }
   }
 }

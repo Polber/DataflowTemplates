@@ -40,8 +40,8 @@ public abstract class TestContainerResourceManager<T extends GenericContainer<?>
   private static final Logger LOG = LoggerFactory.getLogger(TestContainerResourceManager.class);
 
   protected static final String HOST_IP = TestProperties.hostIp();
-  private final T container;
-  private final boolean usingStaticContainer;
+  protected final T container;
+  protected final boolean usingStaticContainer;
   private final String host;
   protected int port;
 
