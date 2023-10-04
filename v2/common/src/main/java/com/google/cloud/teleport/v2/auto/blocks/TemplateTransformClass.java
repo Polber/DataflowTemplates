@@ -15,26 +15,18 @@
  */
 package com.google.cloud.teleport.v2.auto.blocks;
 
-import com.google.auto.value.AutoValue;
 import com.google.cloud.teleport.metadata.auto.TemplateTransform;
-import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-abstract class TemplateTransformClass<X, Y extends PipelineOptions>
-    extends TypedSchemaTransformProvider<Y> implements TemplateTransform<X> {
+public abstract class TemplateTransformClass<X extends PipelineOptions>
+    extends TypedSchemaTransformProvider<X> implements TemplateTransform<X> {
   protected static final String INPUT_ROW_TAG = "input";
   protected static final String OUTPUT_ROW_TAG = "output";
   protected static final String ERROR_ROW_TAG = "errors";
@@ -44,47 +36,53 @@ abstract class TemplateTransformClass<X, Y extends PipelineOptions>
     return List.of(OUTPUT_ROW_TAG, ERROR_ROW_TAG);
   }
 
-  public abstract static class Configuration implements PipelineOptions {
-    abstract void validate();
-
-    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
-    @Nullable
-    abstract TemplateTransformClass.Configuration.ErrorHandling getErrorHandling();
-
-    @AutoValue
-    public abstract static class ErrorHandling {
-      @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
-      public abstract String getOutput();
-
-      public static Configuration.ErrorHandling.Builder builder() {
-        return new AutoValue_TemplateTransformClass_Configuration_ErrorHandling.Builder();
-      }
-
-      @AutoValue.Builder
-      public abstract static class Builder {
-        public abstract Configuration.ErrorHandling.Builder setOutput(String output);
-
-        public abstract Configuration.ErrorHandling build();
-      }
-    }
-
-    public abstract static class Builder<T extends Builder<?>> {
-      public abstract T setErrorHandling(
-          TemplateTransformClass.Configuration.ErrorHandling errorHandling);
-    }
+  @Override
+  public @NonNull Class<X> configurationClass() {
+    return getOptionsClass();
   }
 
-  public abstract PCollectionRowTuple transform(PCollectionRowTuple input, Y config);
+  public interface Configuration extends PipelineOptions {
+    //    abstract void validate();
+    //
+    //    @SchemaFieldDescription("This option specifies whether and where to output unwritable
+    // rows.")
+    //    @Nullable
+    //    TemplateTransformClass.Configuration.ErrorHandling getErrorHandling();
+    //
+    //    @AutoValue
+    //    public abstract static class ErrorHandling {
+    //      @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
+    //      public abstract String getOutput();
+    //
+    //      public static Configuration.ErrorHandling.Builder builder() {
+    //        return new AutoValue_TemplateTransformClass_Configuration_ErrorHandling.Builder();
+    //      }
+    //
+    //      @AutoValue.Builder
+    //      public abstract static class Builder {
+    //        public abstract Configuration.ErrorHandling.Builder setOutput(String output);
+    //
+    //        public abstract Configuration.ErrorHandling build();
+    //      }
+    //    }
+    //
+    //    public abstract static class Builder<T extends Builder<?>> {
+    //      public abstract T setErrorHandling(
+    //          TemplateTransformClass.Configuration.ErrorHandling errorHandling);
+    //    }
+  }
+
+  public abstract PCollectionRowTuple transform(PCollectionRowTuple input, X config);
 
   @Override
-  public SchemaTransform from(Y configuration) {
+  public SchemaTransform from(X configuration) {
     return new TemplateSchemaTransform(configuration);
   }
 
   private class TemplateSchemaTransform extends SchemaTransform {
-    private final Y configuration;
+    private final X configuration;
 
-    private TemplateSchemaTransform(Y configuration) {
+    private TemplateSchemaTransform(X configuration) {
       //      configuration.validate();
       this.configuration = configuration;
     }
@@ -113,78 +111,5 @@ abstract class TemplateTransformClass<X, Y extends PipelineOptions>
   @Override
   public List<String> inputCollectionNames() {
     return List.of(INPUT_ROW_TAG);
-  }
-}
-
-abstract class TemplateReadTransform<X, Y extends PipelineOptions>
-    extends TemplateTransformClass<X, Y> {
-  public abstract PCollectionRowTuple read(PBegin input, Y config);
-
-  public PCollectionRowTuple transform(PCollectionRowTuple input, Y config) {
-    return this.read(input.getPipeline().begin(), config);
-  }
-
-  @Override
-  public SchemaTransform from(Y configuration) {
-    return new SchemaTransform() {
-
-      @Override
-      public PCollectionRowTuple expand(PCollectionRowTuple input) {
-        PCollectionRowTuple output = read(input.getPipeline().begin(), configuration);
-        PCollection<Row> rows = output.get(BlockConstants.OUTPUT_TAG);
-        return PCollectionRowTuple.of(OUTPUT_ROW_TAG, rows.setCoder(RowCoder.of(rows.getSchema())));
-      }
-    };
-  }
-}
-
-abstract class TemplateWriteTransform<X, Y extends PipelineOptions>
-    extends TemplateTransformClass<X, Y> {
-  @Override
-  public List<String> inputCollectionNames() {
-    return Collections.emptyList();
-  }
-
-  private static class NoOutputDoFn<T> extends DoFn<T, Row> {
-    @ProcessElement
-    public void process(ProcessContext c) {}
-  }
-
-  @Override
-  public SchemaTransform from(Y configuration) {
-    return new TemplateSchemaTransform(configuration);
-  }
-
-  private class TemplateSchemaTransform extends SchemaTransform {
-    private final Y configuration;
-
-    private TemplateSchemaTransform(Y configuration) {
-      //      configuration.validate();
-      this.configuration = configuration;
-    }
-
-    @Override
-    public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> messages = input.get(INPUT_ROW_TAG);
-
-      PCollectionRowTuple output =
-          transform(PCollectionRowTuple.of(BlockConstants.OUTPUT_TAG, messages), configuration);
-
-      PCollection<Row> rows =
-          output
-              .get(BlockConstants.OUTPUT_TAG)
-              .apply("post-write", ParDo.of(new NoOutputDoFn<>()))
-              .setRowSchema(Schema.of());
-
-      PCollectionRowTuple outputRowTuple = PCollectionRowTuple.of(OUTPUT_ROW_TAG, rows);
-      //      if (configuration.getErrorHandling() != null) {
-      //        PCollection<Row> errors = output.get(BlockConstants.ERROR_TAG);
-      //        errors.setCoder(RowCoder.of(errors.getSchema()));
-      //        outputRowTuple = outputRowTuple.and(configuration.getErrorHandling().getOutput(),
-      // errors);
-      //      }
-
-      return outputRowTuple;
-    }
   }
 }

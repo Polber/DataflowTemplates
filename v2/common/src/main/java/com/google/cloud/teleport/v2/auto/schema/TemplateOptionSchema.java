@@ -21,35 +21,26 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
-import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A {@link SchemaProvider} for AutoValue classes. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
-public class TemplateOptionSchema extends GetterBasedSchemaProvider {
+/** A {@link SchemaProvider} for Template Block classes. */
+public class TemplateOptionSchema extends AutoValueSchema {
   /** {@link FieldValueTypeSupplier} that's based on AutoValue getters. */
   @VisibleForTesting
-  public static class AbstractGetterTypeSupplier implements FieldValueTypeSupplier {
-    public static final AbstractGetterTypeSupplier INSTANCE = new AbstractGetterTypeSupplier();
+  public static class TemplateGetterTypeSupplier extends AbstractGetterTypeSupplier {
+    public static final TemplateGetterTypeSupplier INSTANCE = new TemplateGetterTypeSupplier();
 
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
@@ -71,60 +62,41 @@ public class TemplateOptionSchema extends GetterBasedSchemaProvider {
       validateFieldNumbers(types);
       return types;
     }
-  }
 
-  private static void validateFieldNumbers(List<FieldValueTypeInformation> types) {
-    for (int i = 0; i < types.size(); ++i) {
-      FieldValueTypeInformation type = types.get(i);
-      @javax.annotation.Nullable Integer number = type.getNumber();
-      if (number == null) {
-        throw new RuntimeException("Unexpected null number for " + type.getName());
+    private static void validateFieldNumbers(List<FieldValueTypeInformation> types) {
+      for (int i = 0; i < types.size(); ++i) {
+        FieldValueTypeInformation type = types.get(i);
+        @javax.annotation.Nullable Integer number = type.getNumber();
+        if (number == null) {
+          throw new RuntimeException("Unexpected null number for " + type.getName());
+        }
+        Preconditions.checkState(
+            number == i,
+            "Expected field number "
+                + i
+                + " for field + "
+                + type.getName()
+                + " instead got "
+                + number);
       }
-      Preconditions.checkState(
-          number == i,
-          "Expected field number "
-              + i
-              + " for field + "
-              + type.getName()
-              + " instead got "
-              + number);
     }
-  }
-
-  @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getGetters(
-        targetClass,
-        schema,
-        AbstractGetterTypeSupplier.INSTANCE,
-        new DefaultTypeConversionsFactory());
-  }
-
-  @Override
-  public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return JavaBeanUtils.getFieldTypes(targetClass, schema, AbstractGetterTypeSupplier.INSTANCE);
   }
 
   @Override
   public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
     return params -> {
-      List<FieldValueTypeInformation> fieldValueTypeInformations =
-          AbstractGetterTypeSupplier.INSTANCE.get(targetClass);
+      List<FieldValueTypeInformation> fieldValueTypeInformation =
+          TemplateGetterTypeSupplier.INSTANCE.get(targetClass);
 
       List<String> args = new ArrayList<>();
-      for (int i = 0; i < fieldValueTypeInformations.size(); i++) {
+      for (int i = 0; i < fieldValueTypeInformation.size(); i++) {
         if (params[i] != null) {
-          args.add("--" + fieldValueTypeInformations.get(i).getName() + "=" + params[i].toString());
+          args.add("--" + schema.getField(i).getName() + "=" + params[i].toString());
         }
       }
-      return PipelineOptionsFactory.fromArgs(args.toArray(new String[args.size()]));
+      return PipelineOptionsFactory.fromArgs(args.toArray(new String[0]))
+          .withValidation()
+          .as((Class<? extends PipelineOptions>) targetClass);
     };
-  }
-
-  @Override
-  public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return JavaBeanUtils.schemaFromJavaBeanClass(
-        typeDescriptor.getRawType(), AbstractGetterTypeSupplier.INSTANCE);
   }
 }
