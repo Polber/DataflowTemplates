@@ -119,10 +119,11 @@ public class WriteToBigQuery extends TemplateWriteTransform<WriteToBigQuery.Sink
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
                     .to(options.getOutputTableSpec()));
 
-    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    options.setUseStorageWriteApi(options.getUseStorageWriteApi());
+//    BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setUseStorageWriteApi(options.getUseStorageWriteApi());
     PCollection<FailsafeElement<String, String>> failedInserts =
-        BigQueryIOUtils.writeResultToBigQueryInsertErrors(writeResult, options)
+        BigQueryIOUtils.writeResultToBigQueryInsertErrors(writeResult, bqOptions)
             .apply(
                 "WrapInsertionErrors",
                 MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())

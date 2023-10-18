@@ -138,7 +138,8 @@ public interface RowTypes extends Serializable {
               Map.of(
                   "messageId", messageId,
                   "message", payload,
-                  "attributes", attributeMap))
+                  "attributes", attributeMap,
+                  "_original_type", "PubSubMessage"))
           .build();
     }
 

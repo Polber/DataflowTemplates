@@ -53,7 +53,7 @@ public abstract class TemplateWriteTransform<X extends PipelineOptions>
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> messages = input.get(INPUT_ROW_TAG);
+      PCollection<Row> messages = input.get(OUTPUT_ROW_TAG);
 
       PCollectionRowTuple output =
           transform(PCollectionRowTuple.of(BlockConstants.OUTPUT_TAG, messages), configuration);

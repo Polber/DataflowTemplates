@@ -67,6 +67,7 @@ public class PubsubMessageToTableRow
                 + "functions.",
         example = "gs://your-bucket/your-function.js")
     @SchemaFieldDescription("Cloud Storage path to Javascript UDF source.")
+    @Nullable
     String getJavascriptTextTransformGcsPath();
 
     void setJavascriptTextTransformGcsPath(String value);
@@ -80,6 +81,7 @@ public class PubsubMessageToTableRow
             "The name of the function to call from your JavaScript file. Use only letters, digits, and underscores.",
         example = "'transform' or 'transform_udf1'")
     @SchemaFieldDescription("UDF Javascript Function Name.")
+    @Nullable
     String getJavascriptTextTransformFunctionName();
 
     void setJavascriptTextTransformFunctionName(String value);
@@ -131,19 +133,25 @@ public class PubsubMessageToTableRow
           NullableCoder.of(PubsubMessageWithAttributesAndMessageIdCoder.of()),
           NullableCoder.of(StringUtf8Coder.of()));
 
-  @Consumes(
-      value = Row.class,
-      types = {RowTypes.PubSubMessageRow.class})
+  public PCollectionRowTuple transform(PCollectionRowTuple input, TransformOptions options) {
+    return null;
+  }
+
+//  @Consumes(
+//      value = Row.class,
+//      types = {RowTypes.PubSubMessageRow.class})
+  @Consumes(PubsubMessage.class)
   @Outputs(
       value = Row.class,
       types = {RowTypes.SchemaTableRow.class})
   @DlqOutputs(
       value = Row.class,
       types = {RowTypes.FailsafePubSubRow.class})
-  public PCollectionRowTuple transform(PCollectionRowTuple input, TransformOptions options) {
+  public PCollectionRowTuple transform(PCollectionTuple input, TransformOptions options) {
     PCollectionTuple udfOut =
         input
-            .get(BlockConstants.OUTPUT_TAG)
+//            .get(BlockConstants.OUTPUT_TAG)
+            .get(new TupleTag<PubsubMessage>())
             // Map the incoming messages into FailsafeElements so we can recover from failures
             // across multiple transforms.
             .apply("MapToRecord", ParDo.of(new PubSubMessageToFailsafeElementFn()))
@@ -192,12 +200,13 @@ public class PubsubMessageToTableRow
   }
 
   private static class PubSubMessageToFailsafeElementFn
-      extends DoFn<Row, FailsafeElement<PubsubMessage, String>> {
+      extends DoFn<PubsubMessage, FailsafeElement<PubsubMessage, String>> {
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      PubsubMessage message =
-          RowTypes.PubSubMessageRow.RowToPubSubMessage(Objects.requireNonNull(context.element()));
+//      PubsubMessage message =
+//          RowTypes.PubSubMessageRow.RowToPubSubMessage(Objects.requireNonNull(context.element()));
+      PubsubMessage message = context.element();
       context.output(
           FailsafeElement.of(message, new String(message.getPayload(), StandardCharsets.UTF_8)));
     }

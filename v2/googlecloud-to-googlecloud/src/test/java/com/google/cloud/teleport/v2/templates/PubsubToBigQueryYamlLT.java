@@ -26,9 +26,12 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.teleport.metadata.TemplateLoadTest;
 import com.google.common.base.MoreObjects;
+import com.google.common.io.Resources;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.time.Duration;
 import java.util.Collections;
@@ -39,13 +42,14 @@ import org.apache.beam.it.common.PipelineOperator.Result;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.it.gcp.TemplateLoadTestBase;
+import org.apache.beam.it.gcp.artifacts.Artifact;
 import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.gcp.bigquery.conditions.BigQueryRowsCheck;
 import org.apache.beam.it.gcp.datagenerator.DataGenerator;
 import org.apache.beam.it.gcp.pubsub.PubsubResourceManager;
+import org.apache.beam.it.gcp.storage.GcsResourceManager;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -55,11 +59,13 @@ import org.junit.runners.JUnit4;
 @Category(TemplateLoadTest.class)
 @TemplateLoadTest(PubSubToBigQuery.class)
 @RunWith(JUnit4.class)
-public class PubsubToBigQueryLT extends TemplateLoadTestBase {
-
+public class PubsubToBigQueryYamlLT extends TemplateLoadTestBase {
   private static final String SPEC_PATH =
       MoreObjects.firstNonNull(
-          TestProperties.specPath(), "gs://dataflow-templates/latest/flex/PubSub_to_BigQuery_Flex");
+          TestProperties.specPath(),
+//          "gs://dataflow-templates/latest/PubSub_Subscription_to_BigQuery"
+          "gs://jkinard-test-templates/templates/flex/YAML_Template_Python"
+      );
   // 35,000,000 messages of the given schema make up approximately 10GB
   private static final int NUM_MESSAGES = 35_000_000;
   // schema should match schema supplied to generate fake records.
@@ -73,13 +79,21 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
           Field.of("username", StandardSQLTypeName.STRING),
           Field.of("quest", StandardSQLTypeName.STRING),
           Field.of("score", StandardSQLTypeName.INT64),
-          Field.of("completed", StandardSQLTypeName.BOOL));
+          Field.of("completed", StandardSQLTypeName.BOOL),
+          // add a insert timestamp column to query latency values
+          Field.newBuilder("_metadata_insert_timestamp", StandardSQLTypeName.TIMESTAMP)
+              .setDefaultValueExpression("CURRENT_TIMESTAMP()")
+              .build());
   private static final String INPUT_PCOLLECTION =
-      "ReadPubSubSubscription/PubsubUnboundedSource.out0";
+//      "ReadFromPubSubTemplates/blocks:external:org.apache.beam:read_from_pubsub:v1/MapElements/Map/ParMultiDo(Anonymous).out0";
+  "ReadFromPubSubTemplates/blocks:external:org.apache.beam:read_from_pubsub:v1/ReadPubSubSubscription/PubsubUnboundedSource.out0";
   private static final String OUTPUT_PCOLLECTION =
-      "WriteSuccessfulRecords/StreamingInserts/StreamingWriteTables/StripShardId/Map.out0";
+      "WriteToBigQueryTemplates/blocks:external:org.apache.beam:write_to_bigquery:v1/WriteTableRows/StreamingInserts/StreamingWriteTables/StripShardId/Map.out0";
   private static PubsubResourceManager pubsubResourceManager;
   private static BigQueryResourceManager bigQueryResourceManager;
+
+  private String artifactBucketName;
+  private static GcsResourceManager gcsClient;
 
   @Before
   public void setup() throws IOException {
@@ -87,6 +101,14 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
         PubsubResourceManager.builder(testName, project, CREDENTIALS_PROVIDER).build();
     bigQueryResourceManager =
         BigQueryResourceManager.builder(testName, project, CREDENTIALS).build();
+
+    if (TestProperties.hasArtifactBucket()) {
+      artifactBucketName = TestProperties.artifactBucket();
+    } else if (TestProperties.hasStageBucket()) {
+      artifactBucketName = TestProperties.stageBucket();
+    }
+    gcsClient = GcsResourceManager.builder(artifactBucketName, getClass().getSimpleName(), CREDENTIALS)
+        .build();
   }
 
   @After
@@ -119,10 +141,12 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
 
   public void testBacklog(Function<LaunchConfig.Builder, LaunchConfig.Builder> paramsAdder)
       throws IOException, ParseException, InterruptedException {
+    // Arrange
     TopicName backlogTopic = pubsubResourceManager.createTopic("backlog-input");
     SubscriptionName backlogSubscription =
         pubsubResourceManager.createSubscription(backlogTopic, "backlog-subscription");
-    // Generate fake data to topic
+    TableId table = bigQueryResourceManager.createTable(testName, SCHEMA);
+    // Generate fake data to table
     DataGenerator dataGenerator =
         DataGenerator.builderWithSchemaTemplate(testName, "GAME_EVENT")
             .setQPS("1000000")
@@ -132,19 +156,24 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
             .setMaxNumWorkers("100")
             .build();
     dataGenerator.execute(Duration.ofMinutes(30));
-    TableId table = bigQueryResourceManager.createTable(testName, SCHEMA);
+
+    String yamlMessage =
+        Files.readString(Paths.get(Resources.getResource("YamlTemplateIT.yaml").getPath()));
+    yamlMessage = yamlMessage.replaceAll("PUBSUB_SUB", backlogSubscription.toString());
+    yamlMessage = yamlMessage.replaceAll("TABLE_SPEC", toTableSpec(project, table));
+
+    Artifact artifact = gcsClient.createArtifact("input/YamlTemplateIT.yaml", yamlMessage);
+
     LaunchConfig options =
         paramsAdder
             .apply(
                 LaunchConfig.builder(testName, SPEC_PATH)
                     .addEnvironment("maxWorkers", 5)
                     .addEnvironment("numWorkers", 4)
-                    .addParameter("inputSubscription", backlogSubscription.toString())
-                    .addParameter("outputTableSpec", toTableSpec(project, table))
-                    .addParameter("useStorageWriteApi", "true")
-                    .addParameter("numStorageWriteApiStreams", "20")
-                    .addParameter("storageWriteApiTriggeringFrequencySec", "60")
-                    .addParameter("autoscalingAlgorithm", "THROUGHPUT_BASED"))
+//                    .addParameter("inputSubscription", backlogSubscription.toString())
+//                    .addParameter("outputTableSpec", toTableSpec(project, table))
+                    .addParameter("yaml", gcsClient.getPathForArtifact(artifact.name()))
+            )
             .build();
 
     // Act
@@ -182,25 +211,31 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
             .setMaxNumWorkers("10")
             .build();
 
+    String yamlMessage =
+        Files.readString(Paths.get(Resources.getResource("YamlTemplateIT.yaml").getPath()));
+    yamlMessage = yamlMessage.replaceAll("PUBSUB_SUB", inputSubscription.toString());
+    yamlMessage = yamlMessage.replaceAll("TABLE_SPEC", toTableSpec(project, table));
+
+    Artifact artifact = gcsClient.createArtifact("input/YamlTemplateIT.yaml", yamlMessage);
+
     LaunchConfig options =
         paramsAdder
             .apply(
                 LaunchConfig.builder(testName, SPEC_PATH)
-                    .addEnvironment("maxWorkers", 8)
+                    .addEnvironment("maxWorkers", 10)
                     .addEnvironment("numWorkers", 7)
                     .addEnvironment("additionalUserLabels", Collections.singletonMap("qps", qps))
-                    .addParameter("inputSubscription", inputSubscription.toString())
-//                    .addParameter("useStorageWriteApi", "true")
-//                    .addParameter("numStorageWriteApiStreams", "100")
-//                    .addParameter("storageWriteApiTriggeringFrequencySec", "60")
-                    .addParameter("outputTableSpec", toTableSpec(project, table)))
+//                    .addParameter("inputSubscription", inputSubscription.toString())
+//                    .addParameter("outputTableSpec", toTableSpec(project, table))
+                    .addParameter("yaml", String.format("gs://%s/%s", TestProperties.artifactBucket(), artifact.name()))
+                    )
             .build();
 
     // Act
     LaunchInfo info = pipelineLauncher.launch(project, region, options);
     assertThatPipeline(info).isRunning();
     // ElementCount metric in dataflow is approximate, allow for 1% difference
-    int expectedMessages = (int) (dataGenerator.execute(Duration.ofMinutes(60)) * 0.99);
+    Integer expectedMessages = (int) (dataGenerator.execute(Duration.ofMinutes(60)) * 0.99);
     Result result =
         pipelineOperator.waitForConditionAndCancel(
             createConfig(info, Duration.ofMinutes(20)),
@@ -210,7 +245,32 @@ public class PubsubToBigQueryLT extends TemplateLoadTestBase {
     // Assert
     assertThatResult(result).meetsConditions();
 
-    // export results
     exportMetricsToBigQuery(info, getMetrics(info, INPUT_PCOLLECTION, OUTPUT_PCOLLECTION));
+
+//    Map<String, Double> metrics = getMetrics(info, INPUT_PCOLLECTION, OUTPUT_PCOLLECTION);
+//    // Query end to end latency metrics from BigQuery
+//    TableResult latencyResult =
+//        bigQueryResourceManager.runQuery(
+//            String.format(
+//                "WITH difference AS (SELECT\n"
+//                    + "    TIMESTAMP_DIFF(_metadata_insert_timestamp,\n"
+//                    + "    TIMESTAMP_MILLIS(eventTimestamp), SECOND) AS latency,\n"
+//                    + "    FROM %s.%s)\n"
+//                    + "    SELECT\n"
+//                    + "      PERCENTILE_CONT(difference.latency, 0.5) OVER () AS median,\n"
+//                    + "      PERCENTILE_CONT(difference.latency, 0.9) OVER () as percentile_90,\n"
+//                    + "      PERCENTILE_CONT(difference.latency, 0.95) OVER () as percentile_95,\n"
+//                    + "      PERCENTILE_CONT(difference.latency, 0.99) OVER () as percentile_99\n"
+//                    + "    FROM difference LIMIT 1",
+//                bigQueryResourceManager.getDatasetId(), testName));
+//
+//    FieldValueList latencyValues = latencyResult.getValues().iterator().next();
+//    metrics.put("median_latency", latencyValues.get(0).getDoubleValue());
+//    metrics.put("percentile_90_latency", latencyValues.get(1).getDoubleValue());
+//    metrics.put("percentile_95_latency", latencyValues.get(2).getDoubleValue());
+//    metrics.put("percentile_99_latency", latencyValues.get(3).getDoubleValue());
+//
+//    // export results
+//    exportMetricsToBigQuery(info, metrics);
   }
 }

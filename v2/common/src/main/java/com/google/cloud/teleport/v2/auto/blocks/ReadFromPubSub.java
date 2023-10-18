@@ -21,13 +21,16 @@ import com.google.cloud.teleport.metadata.auto.Outputs;
 import com.google.cloud.teleport.v2.auto.schema.TemplateOptionSchema;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
@@ -53,21 +56,24 @@ public class ReadFromPubSub extends TemplateReadTransform<ReadFromPubSub.ReadFro
     return "blocks:external:org.apache.beam:read_from_pubsub:v1";
   }
 
-  @Outputs(
-      value = Row.class,
-      types = {RowTypes.PubSubMessageRow.class})
-  public PCollectionRowTuple read(PBegin input, ReadFromPubSubOptions options) {
-    return PCollectionRowTuple.of(
-        BlockConstants.OUTPUT_TAG,
+//  @Outputs(
+//      value = Row.class,
+//      types = {RowTypes.PubSubMessageRow.class})
+  @Outputs(PubsubMessage.class)
+  public PCollectionTuple read(PBegin input, ReadFromPubSubOptions options) {
+    return PCollectionTuple.of(
+//        BlockConstants.OUTPUT_TAG,
+        new TupleTag<PubsubMessage>(),
         input
             .apply(
                 "ReadPubSubSubscription",
                 PubsubIO.readMessagesWithAttributesAndMessageId()
                     .fromSubscription(options.getInputSubscription()))
-            .apply(
-                MapElements.into(TypeDescriptor.of(Row.class))
-                    .via(RowTypes.PubSubMessageRow::PubSubMessageToRow))
-            .setCoder(RowCoder.of(RowTypes.PubSubMessageRow.SCHEMA)));
+//            .apply(
+//                MapElements.into(TypeDescriptor.of(Row.class))
+//                    .via(RowTypes.PubSubMessageRow::PubSubMessageToRow))
+//            .setCoder(RowCoder.of(RowTypes.PubSubMessageRow.SCHEMA))
+    );
   }
 
   @Override

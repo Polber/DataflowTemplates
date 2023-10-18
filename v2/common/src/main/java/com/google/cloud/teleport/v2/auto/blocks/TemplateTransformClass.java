@@ -15,14 +15,24 @@
  */
 package com.google.cloud.teleport.v2.auto.blocks;
 
+import com.google.cloud.teleport.metadata.auto.Outputs;
 import com.google.cloud.teleport.metadata.auto.TemplateTransform;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.List;
+
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 public abstract class TemplateTransformClass<X extends PipelineOptions>
@@ -79,6 +89,44 @@ public abstract class TemplateTransformClass<X extends PipelineOptions>
     return new TemplateSchemaTransform(configuration);
   }
 
+  protected String getTransformName() {
+    return "transform";
+  }
+
+  protected Class<?> getOutputType() {
+    for (Method method : this.getClass().getMethods()) {
+      if (method.getName().equals(getTransformName())) {
+        for (Annotation annotation : method.getDeclaredAnnotations()) {
+          if (annotation.annotationType() == Outputs.class) {
+            Outputs outputs = (Outputs) annotation;
+            return outputs.value();
+          }
+        }
+      }
+    }
+    throw new IllegalStateException();
+  }
+
+  protected <T> MapElements<T, Row> getMappingFunction() {
+    if (getOutputType().equals(PubsubMessage.class)) {
+      return MapElements.into(TypeDescriptor.of(Row.class))
+          .via((message) -> {
+            assert message != null;
+            return RowTypes.PubSubMessageRow.PubSubMessageToRow((PubsubMessage) message);
+          });
+    } else {
+      throw new IllegalStateException();
+    }
+  }
+
+  protected RowCoder getCoder() {
+    if (getOutputType().equals(PubsubMessage.class)) {
+      return RowCoder.of(RowTypes.PubSubMessageRow.SCHEMA);
+    } else {
+      throw new IllegalStateException();
+    }
+  }
+
   private class TemplateSchemaTransform extends SchemaTransform {
     private final X configuration;
 
@@ -89,7 +137,7 @@ public abstract class TemplateTransformClass<X extends PipelineOptions>
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> messages = input.get(INPUT_ROW_TAG);
+      PCollection<Row> messages = input.get(OUTPUT_ROW_TAG);
 
       PCollectionRowTuple output =
           transform(PCollectionRowTuple.of(BlockConstants.OUTPUT_TAG, messages), configuration);

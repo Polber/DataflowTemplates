@@ -15,21 +15,43 @@
  */
 package com.google.cloud.teleport.v2.auto.blocks;
 
+import com.google.cloud.teleport.metadata.auto.Outputs;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptor;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.List;
 
 public abstract class TemplateReadTransform<X extends PipelineOptions>
     extends TemplateTransformClass<X> {
-  public abstract PCollectionRowTuple read(PBegin input, X config);
+  public abstract PCollectionTuple read(PBegin input, X config);
 
   public PCollectionRowTuple transform(PCollectionRowTuple input, X config) {
-    return this.read(input.getPipeline().begin(), config);
+    return PCollectionRowTuple.of("", this.read(input.getPipeline().begin(), config).get(BlockConstants.OUTPUT_TAG));
   }
+
+  @Override
+  protected String getTransformName() {
+    return "read";
+  }
+
+  @Override
+  public List<String> inputCollectionNames() {
+    return Collections.emptyList();
+  }
+
 
   @Override
   public SchemaTransform from(X configuration) {
@@ -37,9 +59,13 @@ public abstract class TemplateReadTransform<X extends PipelineOptions>
 
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
-        PCollectionRowTuple output = read(input.getPipeline().begin(), configuration);
-        PCollection<Row> rows = output.get(BlockConstants.OUTPUT_TAG);
-        return PCollectionRowTuple.of(OUTPUT_ROW_TAG, rows.setCoder(RowCoder.of(rows.getSchema())));
+        PCollectionTuple output = read(input.getPipeline().begin(), configuration);
+
+        PCollection<Row> rows = output.get(BlockConstants.OUTPUT_TAG)
+            .apply(getMappingFunction())
+            .setCoder(getCoder());
+//        return PCollectionRowTuple.of(OUTPUT_ROW_TAG, rows.setCoder(RowCoder.of(rows.getSchema())));
+        return PCollectionRowTuple.of(OUTPUT_ROW_TAG, rows);
       }
     };
   }

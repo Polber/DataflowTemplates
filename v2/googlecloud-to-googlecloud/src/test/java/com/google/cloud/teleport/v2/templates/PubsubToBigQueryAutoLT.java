@@ -15,11 +15,6 @@
  */
 package com.google.cloud.teleport.v2.templates;
 
-import static org.apache.beam.it.common.TestProperties.getProperty;
-import static org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerUtils.toTableSpec;
-import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatPipeline;
-import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatResult;
-
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardSQLTypeName;
@@ -28,11 +23,6 @@ import com.google.cloud.teleport.metadata.TemplateLoadTest;
 import com.google.common.base.MoreObjects;
 import com.google.pubsub.v1.SubscriptionName;
 import com.google.pubsub.v1.TopicName;
-import java.io.IOException;
-import java.text.ParseException;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.function.Function;
 import org.apache.beam.it.common.PipelineLauncher.LaunchConfig;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineOperator.Result;
@@ -45,21 +35,31 @@ import org.apache.beam.it.gcp.datagenerator.DataGenerator;
 import org.apache.beam.it.gcp.pubsub.PubsubResourceManager;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.IOException;
+import java.text.ParseException;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.function.Function;
+
+import static org.apache.beam.it.common.TestProperties.getProperty;
+import static org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerUtils.toTableSpec;
+import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatPipeline;
+import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatResult;
+
 /** Performance tests for {@link PubSubToBigQuery PubSub to BigQuery} template. */
 @Category(TemplateLoadTest.class)
-@TemplateLoadTest(PubSubToBigQuery.class)
+@TemplateLoadTest(PubSubToBigQueryAuto.class)
 @RunWith(JUnit4.class)
-public class PubsubToBigQueryLT extends TemplateLoadTestBase {
+public class PubsubToBigQueryAutoLT extends TemplateLoadTestBase {
 
   private static final String SPEC_PATH =
       MoreObjects.firstNonNull(
-          TestProperties.specPath(), "gs://dataflow-templates/latest/flex/PubSub_to_BigQuery_Flex");
+          TestProperties.specPath(), "gs://jkinard-test-templates/templates/flex/PubSub_to_BigQuery_Auto");
   // 35,000,000 messages of the given schema make up approximately 10GB
   private static final int NUM_MESSAGES = 35_000_000;
   // schema should match schema supplied to generate fake records.

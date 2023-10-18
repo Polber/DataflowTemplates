@@ -1,0 +1,22 @@
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromPubSubTemplates
+      config:
+        inputSubscription: 'PUBSUB_SUB'
+    - type: PubSubToBigQueryTemplates
+#      config:
+#        javascriptTextTransformGcsPath: 'gs://jkinard-test-templates/yaml/udf.js'
+#        javascriptTextTransformFunctionName: 'uppercaseName'
+    - type: WriteToBigQueryTemplates
+      config:
+        useStorageWriteApi: False
+        outputTableSpec: 'TABLE_SPEC'
+providers:
+  - type: 'javaJar'
+    config:
+      jar: 'gs://jkinard-test-templates/yaml/template-transforms.jar'
+    transforms:
+      ReadFromPubSubTemplates: 'blocks:external:org.apache.beam:read_from_pubsub:v1'
+      PubSubToBigQueryTemplates: 'blocks:external:org.apache.beam:pubsub_to_bigquery:v1'
+      WriteToBigQueryTemplates: 'blocks:external:org.apache.beam:write_to_bigquery:v1'
