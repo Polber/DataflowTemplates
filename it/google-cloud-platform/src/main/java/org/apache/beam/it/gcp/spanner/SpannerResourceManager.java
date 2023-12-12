@@ -19,7 +19,10 @@ package org.apache.beam.it.gcp.spanner;
 
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.checkValidProjectId;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateNewId;
+import static org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils.generateDatabaseId;
+import static org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils.generateInstanceId;
 
+import com.google.auth.Credentials;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
@@ -37,6 +40,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -45,10 +49,10 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
+import java.util.function.Supplier;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.it.common.utils.ExceptionUtils;
-import org.apache.beam.it.gcp.spanner.utils.SpannerResourceManagerUtils;
+import org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +85,6 @@ public final class SpannerResourceManager implements ResourceManager {
 
   private final String projectId;
   private final String instanceId;
-  private final boolean usingStaticInstance;
   private final String databaseId;
   private final String region;
 
@@ -93,45 +96,34 @@ public final class SpannerResourceManager implements ResourceManager {
 
   private SpannerResourceManager(Builder builder) {
     this(
-        SpannerOptions.newBuilder().setProjectId(builder.projectId).build().getService(),
-        builder.testId,
-        builder.projectId,
-        builder.region,
-        builder.dialect,
-        builder.useStaticInstance,
-        builder.instanceId);
+        builder,
+        ((Supplier<Spanner>)
+                () -> {
+                  SpannerOptions.Builder optionsBuilder = SpannerOptions.newBuilder();
+                  optionsBuilder.setProjectId(builder.projectId);
+                  if (builder.credentials != null) {
+                    optionsBuilder.setCredentials(builder.credentials);
+                  }
+                  return optionsBuilder.build().getService();
+                })
+            .get());
   }
 
   @VisibleForTesting
-  SpannerResourceManager(
-      Spanner spanner,
-      String testId,
-      String projectId,
-      String region,
-      Dialect dialect,
-      boolean useStaticInstance,
-      @Nullable String instanceId) {
+  SpannerResourceManager(SpannerResourceManager.Builder builder, Spanner spanner) {
     // Check that the project ID conforms to GCP standards
-    checkValidProjectId(projectId);
+    checkValidProjectId(builder.projectId);
 
+    String testId = builder.testId;
     if (testId.length() > MAX_BASE_ID_LENGTH) {
       testId = generateNewId(testId, MAX_BASE_ID_LENGTH);
     }
-    this.projectId = projectId;
+    this.projectId = builder.projectId;
+    this.instanceId = generateInstanceId(testId);
+    this.databaseId = generateDatabaseId(testId);
 
-    if (useStaticInstance) {
-      if (instanceId == null) {
-        throw new SpannerResourceManagerException(
-            "This manager was configured to use a static resource, but the instanceId was not properly set.");
-      }
-      this.instanceId = instanceId;
-    } else {
-      this.instanceId = SpannerResourceManagerUtils.generateInstanceId(testId);
-    }
-    this.usingStaticInstance = useStaticInstance;
-    this.databaseId = SpannerResourceManagerUtils.generateDatabaseId(testId);
-    this.region = region;
-    this.dialect = dialect;
+    this.region = builder.region;
+    this.dialect = builder.dialect;
     this.spanner = spanner;
     this.instanceAdminClient = spanner.getInstanceAdminClient();
     this.databaseAdminClient = spanner.getDatabaseAdminClient();
@@ -145,19 +137,11 @@ public final class SpannerResourceManager implements ResourceManager {
     return new Builder(testId, projectId, region, dialect);
   }
 
-  private synchronized void maybeCreateInstance() {
+  public synchronized void createInstance() {
     checkIsUsable();
-
-    if (usingStaticInstance) {
-      LOG.info("Not creating Spanner instance - reusing static {}", instanceId);
-      hasInstance = true;
-      return;
-    }
-
     if (hasInstance) {
       return;
     }
-
     LOG.info("Creating instance {} in project {}.", instanceId, projectId);
     try {
       InstanceInfo instanceInfo =
@@ -180,7 +164,7 @@ public final class SpannerResourceManager implements ResourceManager {
     }
   }
 
-  private synchronized void maybeCreateDatabase() {
+  public synchronized void createDatabase() {
     checkIsUsable();
     if (hasDatabase) {
       return;
@@ -262,8 +246,12 @@ public final class SpannerResourceManager implements ResourceManager {
    */
   public synchronized void executeDdlStatement(String statement) throws IllegalStateException {
     checkIsUsable();
-    maybeCreateInstance();
-    maybeCreateDatabase();
+    if (!hasInstance) {
+      createInstance();
+    }
+    if (!hasDatabase) {
+      createDatabase();
+    }
 
     LOG.info("Executing DDL statement '{}' on database {}.", statement, databaseId);
     try {
@@ -315,6 +303,39 @@ public final class SpannerResourceManager implements ResourceManager {
   }
 
   /**
+   * Runs the specified query.
+   *
+   * @param query the query to execute
+   */
+  public ImmutableList<Struct> runQuery(String query) {
+    try (ReadContext readContext =
+        spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId)).singleUse()) {
+      ResultSet results = readContext.executeQuery(Statement.of(query));
+
+      ImmutableList.Builder<Struct> tableRecordsBuilder = ImmutableList.builder();
+      while (results.next()) {
+        tableRecordsBuilder.add(results.getCurrentRowAsStruct());
+      }
+      ImmutableList<Struct> tableRecords = tableRecordsBuilder.build();
+
+      LOG.info("Loaded {} rows from {}", tableRecords.size(), query);
+      return tableRecords;
+    } catch (Exception e) {
+      throw new BigQueryResourceManagerException("Failed to read query " + query, e);
+    }
+  }
+
+  /**
+   * Gets the number of rows in the table.
+   *
+   * @param table the name of the table
+   */
+  public Long getRowCount(String table) {
+    ImmutableList<Struct> r = runQuery(String.format("SELECT COUNT(*) FROM %s", table));
+    return r.get(0).getLong(0);
+  }
+
+  /**
    * Reads all the rows in a table. This method requires {@link
    * SpannerResourceManager#executeDdlStatement(String)} to be called for the target table
    * beforehand.
@@ -337,7 +358,7 @@ public final class SpannerResourceManager implements ResourceManager {
    *
    * @param tableId The id of table to read rows from.
    * @param columnNames A collection of the table's column names.
-   * @return A ResultSet object containing all the rows in the table.
+   * @return A List object containing all the rows in the table as structs.
    * @throws IllegalStateException if method is called after resources have been cleaned up or if
    *     the manager object has no instance or database.
    */
@@ -378,30 +399,14 @@ public final class SpannerResourceManager implements ResourceManager {
   @Override
   public synchronized void cleanupAll() {
     try {
-
-      if (usingStaticInstance) {
-        if (databaseAdminClient != null) {
-          Failsafe.with(retryOnQuotaException())
-              .run(() -> databaseAdminClient.dropDatabase(instanceId, databaseId));
-        }
-      } else {
-        LOG.info("Deleting instance {}...", instanceId);
-
-        if (instanceAdminClient != null) {
-          Failsafe.with(retryOnQuotaException())
-              .run(() -> instanceAdminClient.deleteInstance(instanceId));
-        }
-
-        hasInstance = false;
-      }
-
+      LOG.info("Deleting instance {}...", instanceId);
+      instanceAdminClient.deleteInstance(instanceId);
+      hasInstance = false;
       hasDatabase = false;
     } catch (SpannerException e) {
       throw new SpannerResourceManagerException("Failed to delete instance.", e);
     } finally {
-      if (!spanner.isClosed()) {
-        spanner.close();
-      }
+      spanner.close();
     }
     LOG.info("Manager successfully cleaned up.");
   }
@@ -412,42 +417,18 @@ public final class SpannerResourceManager implements ResourceManager {
     private final String testId;
     private final String projectId;
     private final String region;
-    private boolean useStaticInstance;
-    private @Nullable String instanceId;
-
     private final Dialect dialect;
+    private Credentials credentials;
 
     private Builder(String testId, String projectId, String region, Dialect dialect) {
       this.testId = testId;
       this.projectId = projectId;
       this.region = region;
       this.dialect = dialect;
-      this.instanceId = null;
     }
 
-    /**
-     * Configures the resource manager to use a static GCP resource instead of creating a new
-     * instance of the resource.
-     *
-     * @return this builder object with the useStaticInstance option enabled.
-     */
-    public Builder useStaticInstance() {
-      this.useStaticInstance = true;
-      return this;
-    }
-
-    /**
-     * Looks at the system properties if there's an instance id, and reuses it if configured.
-     *
-     * @return this builder object with the useStaticInstance option enabled and instance set if
-     *     configured, the same builder otherwise.
-     */
-    @SuppressWarnings("nullness")
-    public Builder maybeUseStaticInstance() {
-      if (System.getProperty("spannerInstanceId") != null) {
-        this.useStaticInstance = true;
-        this.instanceId = System.getProperty("spannerInstanceId");
-      }
+    public Builder setCredentials(Credentials credentials) {
+      this.credentials = credentials;
       return this;
     }
 
