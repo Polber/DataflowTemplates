@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class DataGenerator {
   private static final Logger LOG = LoggerFactory.getLogger(DataGenerator.class);
   private static final String SPEC_PATH =
-      "gs://dataflow-templates/latest/flex/Streaming_Data_Generator";
+      "gs://jkinard-test-templates/templates/flex/Streaming_Data_Generator";
   private static final String PROJECT = TestProperties.project();
   private static final String REGION = TestProperties.region();
   private static final Credentials CREDENTIALS = TestProperties.googleCredentials();
@@ -196,6 +196,16 @@ public class DataGenerator {
 
     public Builder setTopic(String value) {
       parameters.put("topic", value);
+      return this;
+    }
+
+    public Builder setKafkaTopic(String value) {
+      parameters.put("kafkaTopic", value);
+      return this;
+    }
+
+    public Builder setBootstrapServer(String value) {
+      parameters.put("bootstrapServer", value);
       return this;
     }
 

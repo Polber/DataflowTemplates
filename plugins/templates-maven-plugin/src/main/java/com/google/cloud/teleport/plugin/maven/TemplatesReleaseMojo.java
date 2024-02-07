@@ -104,6 +104,13 @@ public class TemplatesReleaseMojo extends TemplatesBaseMojo {
       List<TemplateDefinitions> templateDefinitions =
           TemplateDefinitionsParser.scanDefinitions(loader);
 
+      String[] groupId = project.getGroupId().split(":");
+      if (groupId.length > 1 && "template-yaml".equals(project.getGroupId().split(":")[1])) {
+        templateDefinitions.addAll(
+            TemplateDefinitionsParser.scanYamlDefinitions(
+                outputClassesDirectory.getAbsolutePath()));
+      }
+
       if (templateName != null && !templateName.isEmpty()) {
         templateDefinitions =
             templateDefinitions.stream()

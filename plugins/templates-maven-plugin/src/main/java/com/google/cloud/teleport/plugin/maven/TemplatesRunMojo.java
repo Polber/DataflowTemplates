@@ -116,6 +116,13 @@ public class TemplatesRunMojo extends TemplatesBaseMojo {
       List<TemplateDefinitions> templateDefinitions =
           TemplateDefinitionsParser.scanDefinitions(loader);
 
+      String[] groupId = project.getGroupId().split(":");
+      if (groupId.length > 1 && "template-yaml".equals(project.getGroupId().split(":")[1])) {
+        templateDefinitions.addAll(
+            TemplateDefinitionsParser.scanYamlDefinitions(
+                outputClassesDirectory.getAbsolutePath()));
+      }
+
       Optional<TemplateDefinitions> definitionsOptional =
           templateDefinitions.stream()
               .filter(candidate -> candidate.getTemplateAnnotation().name().equals(templateName))

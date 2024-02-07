@@ -17,11 +17,18 @@ package com.google.cloud.teleport.plugin;
 
 import com.google.cloud.teleport.metadata.MultiTemplate;
 import com.google.cloud.teleport.metadata.Template;
+import com.google.cloud.teleport.metadata.YamlTemplate;
+import com.google.cloud.teleport.plugin.model.ImageSpec;
 import com.google.cloud.teleport.plugin.model.TemplateDefinitions;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.reflections.Reflections;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Utility class that will be used to scan for {@link Template} or {@link MultiTemplate} classes in
@@ -77,6 +84,59 @@ public final class TemplateDefinitionsParser {
     }
 
     return filteredDefinitions;
+  }
+
+  public static void main(String[] args) throws IOException {
+    List<TemplateDefinitions> templateDefinitions =
+        scanYamlDefinitions("/Users/jkinard/DataflowTemplates/yaml/target/classes");
+    for (TemplateDefinitions definition : templateDefinitions) {
+      ImageSpec imageSpec = definition.buildSpecModel(false);
+    }
+  }
+
+  public static List<TemplateDefinitions> scanYamlDefinitions(String directoryPath)
+      throws IOException {
+    File directory = new File(directoryPath);
+    File[] yamlFiles = directory.listFiles((dir, name) -> name.toLowerCase().endsWith(".yaml"));
+
+    List<TemplateDefinitions> definitions = new ArrayList<>();
+    if (yamlFiles != null) {
+      for (File yamlFile : yamlFiles) {
+        Map<String, Object> yamlSpec = new Yaml().load(new FileInputStream(yamlFile));
+        if (yamlSpec.containsKey("template")) {
+          try {
+            definitions.add(
+                parseYamlDefinition(
+                    (Map<String, Object>) yamlSpec.get("template"), yamlFile.getName()));
+          } catch (Exception e) {
+            throw new RuntimeException("Failed to parse template " + yamlFile.getName(), e);
+          }
+        }
+      }
+    }
+
+    return definitions;
+  }
+
+  public static TemplateDefinitions parseYamlDefinition(Map<String, Object> yaml, String fileName) {
+    TemplateDefinitions definition =
+        new TemplateDefinitions(
+            null,
+            new YamlTemplate(
+                yaml.getOrDefault("name", "").toString(),
+                yaml.getOrDefault("display_name", "").toString(),
+                yaml.getOrDefault("description", "").toString(),
+                yaml.getOrDefault("requirements", "").toString(),
+                yaml.getOrDefault("flex_container_name", "").toString(),
+                fileName,
+                yaml.getOrDefault("category", "").toString(),
+                Boolean.parseBoolean(yaml.getOrDefault("hidden", "false").toString()),
+                yaml.getOrDefault("documentation", "").toString(),
+                yaml.getOrDefault("contactInformation", "").toString(),
+                Boolean.parseBoolean(yaml.getOrDefault("streaming", "false").toString()),
+                Boolean.parseBoolean(yaml.getOrDefault("preview", "false").toString())));
+
+    return definition;
   }
 
   /**
