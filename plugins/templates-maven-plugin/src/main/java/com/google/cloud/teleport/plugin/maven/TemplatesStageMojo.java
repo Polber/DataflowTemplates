@@ -510,6 +510,7 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
 
     String dockerfilePath = outputClassesDirectory.getPath() + "/" + containerName + "/Dockerfile";
     File dockerfile = new File(dockerfilePath);
+    LOG.info("DOCKERFILE: " + dockerfilePath);
     if (!dockerfile.exists()) {
       PythonDockerfileGenerator.generateDockerfile(
           basePythonContainerImage, containerName, outputClassesDirectory);

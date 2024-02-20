@@ -1,0 +1,156 @@
+pipeline:
+  transforms:
+    - type: Create
+      config:
+        elements:
+          - id: 3.0
+            name: 'John'
+          - id: 4.0
+            name: 'Jane'
+    - type: MapToFields
+      name: ToUpperUdf
+      input: Create
+      config:
+        language: java
+        drop: [ name ]
+        append: true
+        fields:
+          name:
+            callable: |
+              import org.apache.beam.sdk.values.Row;
+              import java.util.function.Function;
+              public class MyFunction implements Function<Row, String> {
+                public String apply(Row row) { 
+                  return row.getString("name").toUpperCase(); 
+                }
+              }
+    - type: LogForTesting
+      input: ToUpperUdf
+#    - type: LogForTesting
+#      input: PythonUDF.errors
+
+
+options:
+  yaml_experimental_features: Combine
+#  yaml_experimental_features: Failsafe
+#  input: gs://dataflow-samples/shakespeare/kinglear.txt
+#  output: test_wc
+#  streaming: true
+
+#providers:
+#  - type: renaming
+#    transforms:
+#      'PythonUDF': 'PythonUDF'
+#    config:
+#      mappings:
+#        'PythonUDF':
+#          udf: udf
+#      underlying_provider:
+#        type: python
+#        transforms:
+#          'PythonUDF': 'apache_beam.yaml.MyPTransforms.PythonUDF'
+
+
+# =============================================================================
+# ============================= Template Metadata =============================
+# =============================================================================
+
+#template:
+#
+#  # The name of the template. Can't have spaces.
+#  name: "Word_Count_Yaml"
+#
+#  # The name of the template in the UI.
+#  display_name: "Word Count (Yaml)"
+#
+#  # The description of the template.
+#  description: "A word-counting workflow."
+#
+#  # The interface that holds options/parameters to be passed. Not mandatory
+#  # when "blocks" are used for automatic templates.
+#  parameters:
+#    - name: input
+#      required: false
+#      default: "gs://dataflow-samples/shakespeare/kinglear.txt"
+#      help: "Input file to process."
+#    #    help: ""
+#    #    regex: ""
+#    #    example: ""
+#    #    dest: ""
+#
+#    - name: output
+#      required: true
+#      help: "Output file to write results to."
+
+#  # A description of requirements for the template.
+#  requirements: ""
+#
+#  # Container name to stage (required for Flex templates).
+#  flex_container_name: ""
+#
+#  # The category of the template.
+#  # One of: GET_STARTED | STREAMING | BATCH | UTILITIES | LEGACY
+#  category: ""
+#
+#  # If template should be hidden from the UI.
+#  # default: false
+#  hidden: false
+#
+#  # Link to the documentation.
+#  documentation: ""
+#
+#  # Contact information for the Template.
+#  contact_information: "https://cloud.google.com/support"
+#
+#  # Language in which the template is defined.
+#  type: PYTHON
+#
+#  # Indicates if the template is a streaming pipeline.
+#  streaming: true | false
+#
+#  # Marker if the template is still in preview / pre-GA.
+#  preview: true | false
+
+# =============================================================================
+
+#  update: true
+#  job_name: beamapp-jkinard-0118015114-413906-bupzg0cr
+#
+#  region: us-central1
+#  temp_location: gs://jkinard-test-templates/
+#  project: cloud-teleport-testing
+#  runner: DataflowRunner
+
+#  render_output: ['out.png']
+#  render_port: 0
+#  runner: apache_beam.runners.render.RenderRunner
+
+#providers:
+#  - type: python
+#    transforms:
+#      'MyReadFromPubSub': 'apache_beam.yaml.yaml_io.read_from_pubsub'
+#    config:
+#      packages:
+#        - 'docstring_parser'
+
+# BQ table -> cloud-teleport-testing.jkinard_test.jkinard-yaml-table
+
+#projects/pubsub-public-data/topics/taxirides-realtime
+#ride_id:
+#  type: string
+#point_idx:
+#  type: number
+#latitude:
+#  type: number
+#longitude:
+#  type: number
+#timestamp:
+#  type: string
+#meter_reading:
+#  type: number
+#meter_increment:
+#  type: number
+#ride_status:
+#  type: string
+#passenger_count:
+#  type: number

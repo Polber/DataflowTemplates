@@ -1,1 +1,2 @@
-apache-beam[gcp,yaml]
+apache-beam[gcp,yaml]==2.54.0
+
