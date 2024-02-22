@@ -515,7 +515,7 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
       throws IOException, InterruptedException, TemplateException {
 
     // TODO(polber) Use basePythonContainerImage once plugin can parse metadata from YAML Templates
-    String containerImage = "gcr.io/" + projectId + "/beam-yaml/yaml-template-base:latest";
+    String containerImage = "gcr.io/" + projectId + "/jkinard/yaml-template-base:latest";
     YamlDockerfileGenerator.generateDockerfile(
         containerImage, yamlTemplateName, outputClassesDirectory);
     stageYamlUsingDockerfile(imagePath, yamlTemplateName + "/Dockerfile");
