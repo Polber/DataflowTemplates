@@ -487,7 +487,7 @@ public abstract class JavascriptTextTransformer {
    * @param functionName The function name which will be invoked within the JavaScript script.
    * @return The {@link JavascriptRuntime} instance.
    */
-  private static JavascriptRuntime getJavascriptRuntime(
+  public static JavascriptRuntime getJavascriptRuntime(
       String fileSystemPath, String functionName, Integer reloadIntervalMinutes) {
     JavascriptRuntime javascriptRuntime = null;
 

@@ -45,6 +45,28 @@
       <artifactId>kafka-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.google.cloud.teleport.v2</groupId>
+      <artifactId>common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <version>${autovalue.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <version>${autovalue.service.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.everit.json</groupId>
+      <artifactId>org.everit.json.schema</artifactId>
+      <version>1.5.1</version>
+    </dependency>
 
     <!-- Templates Annotations -->
     <dependency>

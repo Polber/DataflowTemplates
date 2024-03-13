@@ -501,7 +501,7 @@ public abstract class JavascriptTextTransformer {
    * @param reloadIntervalMinutes The interval to check for function changes.
    * @return The {@link JavascriptRuntime} instance.
    */
-  private static JavascriptRuntime getJavascriptRuntime(
+  static JavascriptRuntime getJavascriptRuntime(
       String fileSystemPath, String functionName, Integer reloadIntervalMinutes) {
     JavascriptRuntime javascriptRuntime = null;
 
