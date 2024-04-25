@@ -79,4 +79,9 @@ public class SplunkEventTest {
                         .withFields(fields)
                         .build()))));
   }
+
+  @Test
+  public void dummyTest() {
+    throw new RuntimeException();
+  }
 }
