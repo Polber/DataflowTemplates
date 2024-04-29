@@ -61,4 +61,10 @@ public class SplunkWriteErrorTest {
                         .withStatusMessage("a-different-message")
                         .build()))));
   }
+
+  @Test
+  public void dummyTest() {
+
+    throw new RuntimeException();
+  }
 }
