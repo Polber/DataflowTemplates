@@ -30,6 +30,12 @@ on:
       - '.github/codecov.yml'
       - 'cicd'
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to check out.'
+        type: string
+        required: false
+        default: 'main'
 
 env:
   MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=error
@@ -48,6 +54,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
         with:
+          ref: ${{ inputs.branch }}
           fetch-depth: 2  # setup-env action assumes fetch depth of at least 2 for https://github.com/tj-actions/changed-files?tab=readme-ov-file#on-push-%EF%B8%8F
       - name: Setup Environment
         id: setup-env
@@ -62,6 +69,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
         with:
+          ref: ${{ inputs.branch }}
           fetch-depth: 2  # setup-env action assumes fetch depth of at least 2 for https://github.com/tj-actions/changed-files?tab=readme-ov-file#on-push-%EF%B8%8F
       - name: Setup Environment
         id: setup-env
@@ -77,6 +85,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
         with:
+          ref: ${{ inputs.branch }}
           fetch-depth: 2  # setup-env action assumes fetch depth of at least 2 for https://github.com/tj-actions/changed-files?tab=readme-ov-file#on-push-%EF%B8%8F
       - name: Run Java Build
         uses: ./.github/actions/run-build
@@ -84,13 +93,13 @@ jobs:
           changed-files: ${{ steps.setup-env.outputs.changed-files }}
   java_unit_tests:
     name: Unit Tests
-    needs: [java_build]
     timeout-minutes: 60
     runs-on: [self-hosted, jkinard]
     steps:
       - name: Checkout Code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
         with:
+          ref: ${{ inputs.branch }}
           fetch-depth: 2  # setup-env action assumes fetch depth of at least 2 for https://github.com/tj-actions/changed-files?tab=readme-ov-file#on-push-%EF%B8%8F
       - name: Run Unit Tests
         uses: ./.github/actions/run-unit-tests
@@ -117,6 +126,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4.0.0
         with:
+          ref: ${{ inputs.branch }}
           fetch-depth: 2  # setup-env action assumes fetch depth of at least 2 for https://github.com/tj-actions/changed-files?tab=readme-ov-file#on-push-%EF%B8%8F
       - name: Run Smoke Tests
         uses: ./.github/actions/run-smoke-tests
