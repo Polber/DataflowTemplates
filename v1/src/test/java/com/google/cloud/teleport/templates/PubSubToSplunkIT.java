@@ -258,4 +258,15 @@ public class PubSubToSplunkIT extends TemplateTestBase {
             .addEnvironment("maxWorkers", 10);
     testPubSubToSplunkMain(parameters, false);
   }
+
+  @Test
+  @Category(DirectRunnerTest.class)
+  public void dummySmokeTest() {
+    throw new RuntimeException();
+  }
+
+  @Test
+  public void dummyIntegrationTest() {
+    throw new RuntimeException();
+  }
 }
