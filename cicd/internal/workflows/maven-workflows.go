@@ -56,6 +56,10 @@ type MavenFlags interface {
 	IntegrationTestParallelism(int) string
 	StaticBigtableInstance(string) string
 	StaticSpannerInstance(string) string
+	StaticOracleInstance(string) string
+	CloudProxyHost(string) string
+	CloudProxyPort(string) string
+	CloudProxyPassword(string) string
 }
 
 type mvnFlags struct{}
@@ -133,6 +137,22 @@ func (*mvnFlags) StaticBigtableInstance(instanceID string) string {
 
 func (*mvnFlags) StaticSpannerInstance(instanceID string) string {
 	return "-DspannerInstanceId=" + instanceID
+}
+
+func (*mvnFlags) StaticOracleInstance(host string) string {
+	return "-DcloudOracleHost=" + host
+}
+
+func (*mvnFlags) CloudProxyHost(host string) string {
+	return "-DcloudProxyHost=" + host
+}
+
+func (*mvnFlags) CloudProxyPort(port string) string {
+	return "-DcloudProxyPort=" + port
+}
+
+func (*mvnFlags) CloudProxyPassword(password string) string {
+	return "-DcloudProxyPassword=" + password
 }
 
 func NewMavenFlags() MavenFlags {
