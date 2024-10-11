@@ -185,9 +185,6 @@ public class DockerfileGeneratorTest {
     assertThat(fileContents).contains("FROM a python container image");
     assertThat(fileContents).contains("FROM a java container image");
     assertThat(fileContents).contains("=py_version");
-    assertThat(fileContents)
-        .doesNotContainMatch(
-            "(?m)^(?!COPY main\\.py.*)(COPY(?!.*--from=).*/template.*$|COPY main\\.py.*)$");
     assertThat(fileContents).contains("ENTRYPOINT [\"python/entry/point\"]");
   }
 

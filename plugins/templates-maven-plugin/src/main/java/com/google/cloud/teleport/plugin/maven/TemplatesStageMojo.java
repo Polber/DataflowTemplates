@@ -153,6 +153,17 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
   @Parameter(defaultValue = "${unifiedWorker}", readonly = true, required = false)
   protected boolean unifiedWorker;
 
+  @Parameter(defaultValue = "${saSecretName}", readonly = true, required = false)
+  protected String saSecretName;
+
+  @Parameter(defaultValue = "${airlockPythonRepo}", readonly = true, required = false)
+  protected String airlockPythonRepo;
+
+  @Parameter(defaultValue = "${airlockJavaRepo}", readonly = true, required = false)
+  protected String airlockJavaRepo;
+
+  private boolean internalMaven;
+
   public TemplatesStageMojo() {}
 
   public TemplatesStageMojo(
@@ -198,6 +209,7 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
     this.pythonVersion = pythonVersion;
     this.beamVersion = beamVersion;
     this.unifiedWorker = unifiedWorker;
+    this.internalMaven = false;
   }
 
   public void execute() throws MojoExecutionException {
@@ -377,6 +389,16 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
       TemplateDefinitions definition, ImageSpec imageSpec, BuildPluginManager pluginManager)
       throws MojoExecutionException, IOException, InterruptedException, TemplateException {
 
+    // These are set by the .mvn/settings.xml file. This tells the plugin to use Airlock repos
+    // for building artifacts in Dockerfile-based images (XLANG, PYTHON, YAML). Airlock deps are
+    // only available when running PRs on DataflowTemplates GitHub repo and when releasing
+    // internally, so avoid specifying these 3 parameters when building custom templates externally.
+    if (!Strings.isNullOrEmpty(saSecretName)
+        && !Strings.isNullOrEmpty(airlockPythonRepo)
+        && !Strings.isNullOrEmpty(airlockJavaRepo)) {
+      internalMaven = true;
+    }
+
     // Override some image spec attributes available only during staging/release:
     String version = TemplateDefinitionsParser.parseVersion(stagePrefix);
     String containerName = definition.getTemplateAnnotation().flexContainerName();
@@ -535,6 +557,7 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
             Map.of(
                 String.format("%s-generated-metadata.json", containerName),
                 Set.of("requirements.txt*"));
+
         // Copy in requirements.txt if present
         File sourceRequirements = new File(outputClassesDirectory.getPath() + "/requirements.txt");
         File destRequirements = new File(dockerfileContainer + "/requirements.txt");
@@ -544,21 +567,31 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
               destRequirements.toPath(),
               StandardCopyOption.REPLACE_EXISTING);
         }
+
+        // Generate Dockerfile
         Set<String> directoriesToCopy = Set.of(containerName);
-        DockerfileGenerator.builder(
-                definition.getTemplateAnnotation().type(),
-                beamVersion,
-                containerName,
-                outputClassesDirectory)
-            .setBasePythonContainerImage(basePythonContainerImage)
-            .setBaseJavaContainerImage(baseContainerImage)
-            .setPythonVersion(pythonVersion)
-            .setEntryPoint(javaTemplateLauncherEntryPoint)
-            .setCommandSpec(xlangCommandSpec)
-            .setFilesToCopy(filesToCopy)
-            .setDirectoriesToCopy(directoriesToCopy)
-            .build()
-            .generate();
+        DockerfileGenerator.Builder dockerfileBuilder =
+            DockerfileGenerator.builder(
+                    definition.getTemplateAnnotation().type(),
+                    beamVersion,
+                    containerName,
+                    outputClassesDirectory)
+                .setBasePythonContainerImage(basePythonContainerImage)
+                .setBaseJavaContainerImage(baseContainerImage)
+                .setPythonVersion(pythonVersion)
+                .setEntryPoint(javaTemplateLauncherEntryPoint)
+                .setCommandSpec(xlangCommandSpec)
+                .setFilesToCopy(filesToCopy)
+                .setDirectoriesToCopy(directoriesToCopy);
+
+        // Set Airlock parameters
+        if (internalMaven) {
+          dockerfileBuilder
+              .setServiceAccountSecretName(saSecretName)
+              .setAirlockPythonRepo(airlockPythonRepo);
+        }
+
+        dockerfileBuilder.build().generate();
       }
 
       // Copy java classes and libs to build directory
@@ -652,18 +685,29 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
     if (!Strings.isNullOrEmpty(otherFiles)) {
       List.of(otherFiles.split(",")).forEach(file -> filesToCopy.put(file, Set.of()));
     }
-    DockerfileGenerator.builder(
-            definition.getTemplateAnnotation().type(),
-            beamVersion,
-            containerName,
-            outputClassesDirectory)
-        .setBasePythonContainerImage(basePythonContainerImage)
-        .setBaseJavaContainerImage(baseContainerImage)
-        .setPythonVersion(pythonVersion)
-        .setEntryPoint(pythonTemplateLauncherEntryPoint)
-        .setFilesToCopy(filesToCopy)
-        .build()
-        .generate();
+
+    // Generate Dockerfile
+    DockerfileGenerator.Builder dockerfileBuilder =
+        DockerfileGenerator.builder(
+                definition.getTemplateAnnotation().type(),
+                beamVersion,
+                containerName,
+                outputClassesDirectory)
+            .setBasePythonContainerImage(basePythonContainerImage)
+            .setBaseJavaContainerImage(baseContainerImage)
+            .setPythonVersion(pythonVersion)
+            .setEntryPoint(pythonTemplateLauncherEntryPoint)
+            .setFilesToCopy(filesToCopy);
+
+    // Set Airlock parameters
+    if (internalMaven) {
+      dockerfileBuilder
+          .setServiceAccountSecretName(saSecretName)
+          .setAirlockPythonRepo(airlockPythonRepo)
+          .setAirlockJavaRepo(airlockJavaRepo);
+    }
+
+    dockerfileBuilder.build().generate();
 
     stageYamlUsingDockerfile(imagePath, containerName);
 
@@ -725,16 +769,26 @@ public class TemplatesStageMojo extends TemplatesBaseMojo {
             StandardCopyOption.REPLACE_EXISTING);
       }
       Map<String, Set<String>> filesToCopy = Map.of("main.py", Set.of("requirements.txt*"));
-      DockerfileGenerator.builder(
-              definition.getTemplateAnnotation().type(),
-              beamVersion,
-              containerName,
-              targetDirectory)
-          .setBasePythonContainerImage(basePythonContainerImage)
-          .setFilesToCopy(filesToCopy)
-          .setEntryPoint(pythonTemplateLauncherEntryPoint)
-          .build()
-          .generate();
+
+      // Generate Dockerfile
+      DockerfileGenerator.Builder dockerfileBuilder =
+          DockerfileGenerator.builder(
+                  definition.getTemplateAnnotation().type(),
+                  beamVersion,
+                  containerName,
+                  targetDirectory)
+              .setBasePythonContainerImage(basePythonContainerImage)
+              .setFilesToCopy(filesToCopy)
+              .setEntryPoint(pythonTemplateLauncherEntryPoint);
+
+      // Set Airlock parameters
+      if (internalMaven) {
+        dockerfileBuilder
+            .setServiceAccountSecretName(saSecretName)
+            .setAirlockPythonRepo(airlockPythonRepo);
+      }
+
+      dockerfileBuilder.build().generate();
     }
     stagePythonUsingDockerfile(imagePath, containerName);
 

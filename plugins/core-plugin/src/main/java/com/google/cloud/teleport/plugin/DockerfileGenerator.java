@@ -51,7 +51,7 @@ public class DockerfileGenerator {
   public static final String JAVA_LAUNCHER_ENTRYPOINT =
       "/opt/google/dataflow/java_template_launcher";
 
-  // Keep pythonVersion below in sync with version in image
+  // Keep pythonVersion below in sync with version in base image
   public static final String PYTHON_VERSION = "3.11";
 
   private static final Logger LOG = Logger.getLogger(DockerfileGenerator.class.getName());
@@ -201,6 +201,21 @@ public class DockerfileGenerator {
 
     public Builder setCommandSpec(String commandSpec) {
       this.parameters.put("commandSpec", commandSpec);
+      return this;
+    }
+
+    public Builder setAirlockPythonRepo(String airlockPythonRepo) {
+      this.parameters.put("airlockPythonRepo", airlockPythonRepo);
+      return this;
+    }
+
+    public Builder setAirlockJavaRepo(String airlockJavaRepo) {
+      this.parameters.put("airlockJavaRepo", airlockJavaRepo);
+      return this;
+    }
+
+    public Builder setServiceAccountSecretName(String secretName) {
+      this.parameters.put("saSecretName", secretName);
       return this;
     }
 
