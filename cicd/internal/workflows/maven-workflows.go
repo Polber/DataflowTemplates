@@ -57,7 +57,6 @@ type MavenFlags interface {
 	IntegrationTestParallelism(int) string
 	StaticBigtableInstance(string) string
 	StaticSpannerInstance(string) string
-	SpannerHost(string) string
 	InternalMaven() string
 }
 
@@ -140,10 +139,6 @@ func (*mvnFlags) StaticBigtableInstance(instanceID string) string {
 
 func (*mvnFlags) StaticSpannerInstance(instanceID string) string {
 	return "-DspannerInstanceId=" + instanceID
-}
-
-func (*mvnFlags) SpannerHost(host string) string {
-	return "-DspannerHost=" + host
 }
 
 func (*mvnFlags) InternalMaven() string {
